@@ -4,11 +4,7 @@
   "description": "mobile-app-backend",
   "main": "app.js",
   "scripts": {
-    "serve": "firebase emulators:start --only functions",
-    "shell": "firebase functions:shell",
-    "start": "npm run shell",
-    "deploy": "firebase deploy --only functions",
-    "logs": "firebase functions:log"
+    "start": "nodemon app.js"
   },
   "engines": {
     "node": "18"
