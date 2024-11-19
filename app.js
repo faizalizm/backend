@@ -28,15 +28,21 @@ app.use((req, res, next) => {
 // app.delete('/api/v1/tours/:id', deleteTour);
 
 // Serve Swagger documentation
+// app.use('/', swaggerUI.serve, swaggerUI.setup(swaggerSpec));
 app.use('/', swaggerUI.serve, swaggerUI.setup(swaggerSpec));
+
 // app.get('/', (req, res) => res.send('Express on Vercel'));
 app.use('/api/v1/tours', tourRouter);
 app.use('/api/v1/users', userRouter);
 
-// ------ Server Startup
-const port = process.env.PORT || 3001;
-app.listen(port, () => {
-  console.log(`App running on port ${port}`);
-});
-
-module.exports = app;
+if (process.env.NODE_ENV === 'DEV') {
+  // ------ Server Startup
+  const port = process.env.PORT || 3001;
+  app.listen(port, () => {
+    console.log(`App running on port ${port}`);
+  });
+} else if (process.env.NODE_ENV === 'PROD') {
+  module.exports = app;
+} else {
+  console.log('ERROR : Environment not specified !');
+}
