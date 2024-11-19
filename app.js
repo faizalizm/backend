@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 const express = require('express');
 const morgan = require('morgan');
 
@@ -25,11 +27,14 @@ app.use((req, res, next) => {
 // app.patch('/api/v1/tours/:id', updateTour);
 // app.delete('/api/v1/tours/:id', deleteTour);
 
+app.get('/', (req, res) => res.send('Express on Vercel'));
 app.use('/api/v1/tours', tourRouter);
 app.use('/api/v1/users', userRouter);
 
 // ------ Server Startup
-const port = 3000;
+const port = process.env.PORT || 3001;
 app.listen(port, () => {
   console.log(`App running on port ${port}`);
 });
+
+module.exports = app;
