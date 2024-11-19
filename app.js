@@ -1,10 +1,6 @@
 const express = require('express');
 const morgan = require('morgan');
 
-const firebaseApp = require('./firebase'); // Import the app instance directly
-const { onRequest } = require('firebase-functions/v2/https');
-const logger = require('firebase-functions/logger');
-
 const tourRouter = require('./routes/tourRoutes');
 const userRouter = require('./routes/userRoutes');
 
@@ -31,9 +27,6 @@ app.use((req, res, next) => {
 
 app.use('/api/v1/tours', tourRouter);
 app.use('/api/v1/users', userRouter);
-
-// Firebase Setup
-console.log('Firebase App Initialized:', firebaseApp);
 
 // ------ Server Startup
 const port = 3000;
