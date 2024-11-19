@@ -35,13 +35,13 @@ app.use('/', swaggerUI.serve, swaggerUI.setup(swaggerSpec));
 app.use('/api/v1/tours', tourRouter);
 app.use('/api/v1/users', userRouter);
 
-if (process.env.NODE_ENV === 'DEV') {
+if (process.env.VERCEL_ENV === 'DEV') {
   // ------ Server Startup
   const port = process.env.PORT || 3001;
   app.listen(port, () => {
     console.log(`App running on port ${port}`);
   });
-} else if (process.env.NODE_ENV === 'PROD') {
+} else if (process.env.VERCEL_ENV === 'PROD') {
   module.exports = app;
 } else {
   console.log('ERROR : Environment not specified !');
