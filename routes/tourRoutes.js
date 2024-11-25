@@ -3,90 +3,90 @@ const express = require('express');
 
 // Data Source
 const tours = JSON.parse(
-  fs.readFileSync(`${__dirname}/../dev-data/data/tours-simple.json`)
-);
+        fs.readFileSync(`${__dirname}/../dev-data/data/tours-simple.json`)
+        );
 
 const getAllTours = (req, res) => {
-  console.log(req.requestTime);
-  res.status(200).json({
-    status: 'SUCCESS',
-    requestTime: req.requestTime,
-    results: tours.length,
-    data: {
-      tours: tours,
-    },
-  });
+    console.log(req.requestTime);
+    res.status(200).json({
+        status: 'SUCCESS',
+        requestTime: req.requestTime,
+        results: tours.length,
+        data: {
+            tours: tours,
+        },
+    });
 };
 
 const getTour = (req, res) => {
-  const id = req.params.id * 1;
-  const tour = tours.find((el) => el.id === id);
+    const id = req.params.id * 1;
+    const tour = tours.find((el) => el.id === id);
 
-  if (!tour) {
-    return res.status(404).json({
-      status: 'FAILED',
-      message: 'Invalid ID',
+    if (!tour) {
+        return res.status(404).json({
+            status: 'FAILED',
+            message: 'Invalid ID',
+        });
+    }
+
+    res.status(200).json({
+        status: 'SUCCESS',
+        data: {
+            tour: tour,
+        },
     });
-  }
-
-  res.status(200).json({
-    status: 'SUCCESS',
-    data: {
-      tour: tour,
-    },
-  });
 };
 
 const createTour = (req, res) => {
-  console.log(req.body);
+    console.log(req.body);
 
-  const newId = tours[tours.length - 1].id + 1;
-  const newTour = Object.assign({ id: newId }, req.body); // append id to json
+    const newId = tours[tours.length - 1].id + 1;
+    const newTour = Object.assign({id: newId}, req.body); // append id to json
 
-  // persist to datasource
-  tours.push(newTour);
-  fs.writeFile(
-    `${__dirname}/dev-data/data/tours-simple.json`,
-    JSON.stringify(tours),
-    (err) => {
-      res.status(201).json({
-        status: 'SUCCESS',
-        data: {
-          tour: tours,
-        },
-      });
+    // persist to datasource
+    tours.push(newTour);
+    fs.writeFile(
+            `${__dirname}/dev-data/data/tours-simple.json`,
+            JSON.stringify(tours),
+            (err) => {
+        res.status(201).json({
+            status: 'SUCCESS',
+            data: {
+                tour: tours,
+            },
+        });
     }
-  );
+    );
 };
 
 const updateTour = (req, res) => {
-  if (req.params.id * 1 > tours.length) {
-    return res.status(404).json({
-      status: 'FAILED',
-      message: 'Invalid ID',
-    });
-  }
+    if (req.params.id * 1 > tours.length) {
+        return res.status(404).json({
+            status: 'FAILED',
+            message: 'Invalid ID',
+        });
+    }
 
-  res.status(200).json({
-    status: 'SUCCESS',
-    data: {
-      tour: '<Updated Tour>',
-    },
-  });
+    res.status(200).json({
+        status: 'SUCCESS',
+        data: {
+            tour: '<Updated Tour>',
+        },
+    });
 };
 
 const deleteTour = (req, res) => {
-  if (req.params.id * 1 > tours.length) {
-    return res.status(404).json({
-      status: 'FAILED',
-      message: 'Invalid ID',
-    });
-  }
+    if (req.params.id * 1 > tours.length) {
+        return res.status(404).json({
+            status: 'FAILED',
+            message: 'Invalid ID',
+        });
+    }
 
-  res.status(204).json({
-    status: 'SUCCESS',
-    data: null,
-  });
+    res.status(204).json({
+        status: 'SUCCESS',
+        data: null,
+    });
 };
 
 const router = express.Router();

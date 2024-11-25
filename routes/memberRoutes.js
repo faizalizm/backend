@@ -1,43 +1,25 @@
 const express = require('express');
+const {protect} = require('../middleware/authMiddleware');
 
-const getAllUsers = (req, res) => {
-  res.status(200).json({
-    status: 'ERROR',
-    message: 'Service Not Available',
-  });
-};
-
-const createUser = (req, res) => {
-  res.status(200).json({
-    status: 'ERROR',
-    message: 'Service Not Available',
-  });
-};
-
-const getUser = (req, res) => {
-  res.status(200).json({
-    status: 'ERROR',
-    message: 'Service Not Available',
-  });
-};
-
-const updateUser = (req, res) => {
-  res.status(200).json({
-    status: 'ERROR',
-    message: 'Service Not Available',
-  });
-};
-
-const deleteUser = (req, res) => {
-  res.status(200).json({
-    status: 'ERROR',
-    message: 'Service Not Available',
-  });
-};
+const {
+    registerMember,
+    loginMember,
+    getMember,
+    updateMember,
+    inviteMember,
+    genQRCode,
+    getReferral
+} = require('../controllers/memberController');
 
 const router = express.Router();
 
-router.route('/').get(getAllUsers).post(createUser);
-router.route('/:id').get(getUser).patch(updateUser).delete(deleteUser);
+router.post('/register', registerMember);
+router.post('/login', loginMember);
+
+router.get('/', protect, getMember);
+router.patch('/', protect, updateMember); // MBR-4, MBR-6, 
+//router.post('/invite', protect, inviteMember);
+router.get('/qrcode', protect, genQRCode);
+router.get('/referral', protect, getReferral);
 
 module.exports = router;
