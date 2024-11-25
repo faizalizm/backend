@@ -40,12 +40,12 @@ app.use('/api/v1/member', require('./routes/memberRoutes'));
 
 app.use(errorHandler);
 
-// if (process.env.VERCEL_ENV === 'DEVELOPMENT') {
+// if (process.env.NODE_ENV === 'DEVELOPMENT') {
 //   // ------ Server Startup
 app.listen(port, () => {
     console.log(`App running on port ${port}`);
 });
-// } else if (process.env.VERCEL_ENV === 'PRODUCTION') {
+// } else if (process.env.NODE_ENV === 'PRODUCTION') {
 //module.exports = app;
 // } else {
 //   console.log('ERROR : Environment not specified !');
