@@ -154,7 +154,6 @@ const registerMember = asyncHandler(async (req, res) => {
 
 
         res.status(201).json({
-            _id: member._id,
             fullName: member.fullName,
             email: member.email,
             phone: member.phone,
@@ -187,7 +186,6 @@ const loginMember = asyncHandler(async (req, res) => {
 
     if (member && (await bcrypt.compare(password, member.password))) {
         res.json({
-            _id: member._id,
             fullName: member.fullName,
             email: member.mail,
             phone: member.phone,
@@ -310,6 +308,15 @@ const updateMember = asyncHandler(async (req, res) => {
 const getMember = asyncHandler(async (req, res) => {
     // Exclude the paymentCode field from the response
     const {paymentCode, referrals, ...memberData} = req.member.toObject();
+
+    if (!req.member.referredBy) {
+        memberData.referredBy = 'Not Available';
+    } else {
+        const referrer = await Member.findOne({_id: req.member.referredBy});
+        if (referrer) {
+            memberData.referredBy = referrer.fullName;
+        }
+    }
 
     res.status(200).json(memberData);
 });

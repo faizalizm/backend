@@ -1,23 +1,21 @@
-const mongooseMember = require('mongoose');
+const mongoose = require('mongoose');
 
-const memberSchema = new mongooseMember.Schema({
-    profilePicture: {
-        type: String,
-        default: null,
-        validate: {
-            validator: function (value) {
-                // Ensure the string is a valid Base64 image format (basic validation)
-                return (
-                        value === null ||
-                        /^data:image\/(jpg|jpeg|png);base64,/.test(value)
-                        );
-            },
-            message: 'Invalid Base64 image format.'
-        }
+const walletSchema = new mongoose.Schema({
+    memberId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Member', // Reference to the referred member
+        required: true
     },
-    fullName: {
-        type: String,
-        required: [true, 'Please add your name']
+    balance: {
+        type: Number, // Using Number for calculations
+        required: [true, 'Balance is required'],
+        default: 0, // Default balance is 0
+        min: [0, 'Balance Cannot Be Negative'], // Prevent negative balances
+    },
+    currency: {
+      type: String,
+      default: 'MYR', // Default currency
+      enum: ['MYR'] // Restrict to supported currencies
     },
     email: {
         type: String,
@@ -45,4 +43,4 @@ const memberSchema = new mongooseMember.Schema({
     timestamps: true
 });
 
-module.exports = mongooseMember.model('Member', memberSchema);
+module.exports = mongoose.model('Wallet', walletSchema);

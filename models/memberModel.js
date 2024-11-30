@@ -12,7 +12,7 @@ const memberSchema = new mongoose.Schema({
                         /^data:image\/(jpg|jpeg|png);base64,/.test(value)
                         );
             },
-            message: 'Invalid Base64 image format.'
+            message: 'Invalid Base64 Image Format.'
         }
     },
     fullName: {
@@ -26,12 +26,12 @@ const memberSchema = new mongoose.Schema({
     },
     password: {
         type: String,
-        required: [true, 'Please add your password'],
-        unique: true
+        required: [true, 'Please add your password']
     },
     phone: {
         type: String,
-        required: [true, 'Please add your phone']
+        required: [true, 'Please add your phone'],
+        unique: true
     },
     paymentCode: {
         type: String,
@@ -40,13 +40,11 @@ const memberSchema = new mongoose.Schema({
     referredBy: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Member',
-        default: null, // Null if there's no referral
+        default: null // Null if there's no referral
     },
-    // 
     referralCode: {
         type: String,
-        required: true,
-        default: null
+        required: true
     },
     referrals: {
         type: [
@@ -60,7 +58,7 @@ const memberSchema = new mongoose.Schema({
                         {
                             referrerId: {
                                 type: mongoose.Schema.Types.ObjectId,
-                                ref: 'Member', // Reference to the referrer
+                                ref: 'Member' // Reference to the referrer
                             },
                             memberId: {
                                 type: mongoose.Schema.Types.ObjectId,
@@ -80,6 +78,11 @@ const memberSchema = new mongoose.Schema({
         ],
         _id: false,
         default: [] // Default to an empty array
+    },
+    type: {
+        type: String,
+        default: 'Normal', // Normal|VIP
+        enum: ['Normal', 'VIP'] // Restrict to allowed values
     }
 }, {
     timestamps: true

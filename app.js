@@ -32,8 +32,9 @@ app.use((req, res, next) => {
 
 // ------ Routes
 //app.use('/', swaggerUI.serve, swaggerUI.setup(swaggerSpec));
-//app.use('/api/v1/tours', tourRouter);
 app.use('/api/v1/member', require('./routes/memberRoutes'));
+app.use('/api/v1/package', require('./routes/packageRoutes'));
+app.use('/api/v1/wallet', require('./routes/walletRoutes'));
 
 app.use((req, res, next) => {
     const startTime = Date.now(); // Track request start time

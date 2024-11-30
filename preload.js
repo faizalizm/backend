@@ -14,12 +14,20 @@ const preloadPackage = async () => {
             {
                 name: 'HUB GIFT PACK (MEN)',
                 description: 'Become a RewardHub VIP and get merchandise for men',
-                packageCode: '5430n0yy',
+                code: '5430n0yy',
+                price: '25000',
+                emailContent: 'Thank you for purchasing HUB GIFT PACK (MEN), we wish you a pleasant journey in using RewardsHub to spend & earn',
+                paymentChannel: 0,
+                packageCharge: 0
             },
             {
                 name: 'HUB GIFT PACK (WOMEN)',
                 description: 'Become a RewardHub VIP and get merchandise for women',
-                packageCode: 'xs88o64q',
+                code: 'xs88o64q',
+                price: '25000',
+                emailContent: 'Thank you for purchasing HUB GIFT PACK (WOMEN), we wish you a pleasant journey in using RewardsHub to spend & earn',
+                paymentChannel: 0,
+                packageCharge: 0
             },
         ];
 

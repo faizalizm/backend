@@ -6,31 +6,44 @@ const transactionSchema = new mongoose.Schema({
         ref: 'Member', // Reference to the referred member
         required: true
     },
-    type: { // Transfer via Phone| Transfer via Email|Transfer via QR Payment|Withdrawal|Top Up
+    type: {
         type: String,
-        required: [true, 'Please add type']
+        required: [true, 'Please add type'],
+        enum: [
+            'Transfer via Phone',
+            'Transfer via Email',
+            'Transfer via QR Payment',
+            'Withdrawal',
+            'Top Up',
+            'VIP Payment'
+        ],
     },
-    status: { // In Progress -> Success|Failed|Expired
+    status: {
         type: String,
-        required: [true, 'Please add status']
+        required: [true, 'Please add status'],
+        enum: ['In Progress', 'Success', 'Failed', 'Expired'],
     },
-    recipientMemberId: { // 
-        type: String,
-        required: [true, 'Please add status']
+    recipientMemberId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Member', // Reference to the recipient member
+        default: null // For transfer
     },
-    paymentCode: {// For Transfer
+    paymentCode: {
         type: String,
-        default: null
+        default: null // For QR Payment
     },
     packageCode: {
         type: String,
-        default: null
+        default: null // For VIP Payment
     },
-    // 
-    categoryCode: {
+    amount: {
+        type: Number,
+        required: [true, 'Please specify the amount'],
+        min: [0, 'Amount must be a positive number']
+    },
+    notes: {
         type: String,
-        required: true,
-        default: null
+        default: null, // Optional field for additional transaction info
     }
 }, {
     timestamps: true
