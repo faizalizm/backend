@@ -4,10 +4,8 @@ const bcrypt = require('bcryptjs');
 const asyncHandler = require('express-async-handler');
 const qrcode = require('qrcode');
 const Member = require('../models/memberModel');
+const Wallet = require('../models/walletModel');
 
-// @desc    Register new member
-// @route   POST /api/member/register
-// @access  Public
 const registerMember = asyncHandler(async (req, res) => {
     const {fullName, email, password, phone, referredBy} = req.body;
 
@@ -49,20 +47,6 @@ const registerMember = asyncHandler(async (req, res) => {
         }
     }
 
-    // Generate Payment Code
-    let isPaymentCodeUnique = false;
-    let paymentCode;
-    while (!isPaymentCodeUnique) {
-        paymentCode = "payment://" + generatePaymentCode(); // Generate a new payment code
-
-        // Check if the payment code already exists in the database
-        const existingPaymentCode = await Member.findOne({paymentCode});
-
-        if (!existingPaymentCode) {
-            isPaymentCodeUnique = true; // If no existing member found, the code is unique
-        }
-    }
-
     // Generate Referral Code
     let isReferralCodeUnique = false;
     let memberReferralCode;
@@ -83,9 +67,29 @@ const registerMember = asyncHandler(async (req, res) => {
         email,
         password: hashedPassword,
         phone,
-        paymentCode,
         referredBy: referrer ? referrer._id : null,
         referralCode: memberReferralCode
+    });
+
+    // Generate Payment Code
+    let isPaymentCodeUnique = false;
+    let paymentCode;
+    while (!isPaymentCodeUnique) {
+        paymentCode = "payment://" + generatePaymentCode(); // Generate a new payment code
+
+        // Check if the payment code already exists in the database
+        const existingPaymentCode = await Member.findOne({paymentCode});
+
+        if (!existingPaymentCode) {
+            isPaymentCodeUnique = true; // If no existing member found, the code is unique
+        }
+    }
+
+    const wallet = await Wallet.create({
+        memberId: member._id,
+        balance: 0,
+        currency: 'MYR',
+        paymentCode
     });
 
     if (member) {// If there is a referrer, add the new member to their referral list
@@ -172,9 +176,6 @@ const registerMember = asyncHandler(async (req, res) => {
     }
 });
 
-// @desc    Authenticate a member
-// @route   POST /api/member/login
-// @access  Public
 const loginMember = asyncHandler(async (req, res) => {
     const {email, password, phone} = req.body;
 
@@ -190,12 +191,14 @@ const loginMember = asyncHandler(async (req, res) => {
     }
 
     if (member && (await bcrypt.compare(password, member.password))) {
+        const totalLiveVIP = await getTotalLiveVIP();
         res.json({
             fullName: member.fullName,
             email: member.mail,
             phone: member.phone,
             referralCode: member.referralCode,
-            token: generateToken(member._id)
+            token: generateToken(member._id),
+            totalLiveVIP
         });
     } else {
         res.status(400);
@@ -203,12 +206,25 @@ const loginMember = asyncHandler(async (req, res) => {
     }
 });
 
-// @desc    Update member data
-// @route   GET /api/member/update
-// @access  Private
+const getMember = asyncHandler(async (req, res) => {
+    // Exclude fields from the response
+    const {referrals, _id, createdAt, updatedAt, __v, ...memberData} = req.member.toObject();
+
+    if (!req.member.referredBy) {
+        memberData.referredBy = 'Not Available';
+    } else {
+        const referrer = await Member.findOne({_id: req.member.referredBy});
+        if (referrer) {
+            memberData.referredBy = referrer.fullName;
+        }
+    }
+
+    res.status(200).json(memberData);
+});
+
 const updateMember = asyncHandler(async (req, res) => {
     // Remove restricted fields
-    const {_id, createdAt, updatedAt, paymentCode, referralCode, ...updates} = req.body;
+    const {_id, createdAt, updatedAt, referralCode, type, ...updates} = req.body;
 
 
     // Check if the referral code is being updated
@@ -303,53 +319,14 @@ const updateMember = asyncHandler(async (req, res) => {
     const updatedMember = await Member.findByIdAndUpdate(req.member._id, updates, {
         new : true,
         runValidators: true // Ensures schema validation is applied
-    });
+    }).select('-_id -createdAt -updatedAt -__v -referrals -referredBy -referralCode -type');
     res.status(200).json(updatedMember);
-});
-
-// @desc    Get member data
-// @route   GET /api/member/me
-// @access  Private
-const getMember = asyncHandler(async (req, res) => {
-    // Exclude the paymentCode field from the response
-    const {paymentCode, referrals, _id, createdAt, updatedAt, __v, ...memberData} = req.member.toObject();
-
-    if (!req.member.referredBy) {
-        memberData.referredBy = 'Not Available';
-    } else {
-        const referrer = await Member.findOne({_id: req.member.referredBy});
-        if (referrer) {
-            memberData.referredBy = referrer.fullName;
-        }
-    }
-
-    res.status(200).json(memberData);
 });
 
 const inviteMember = asyncHandler(async (req, res) => {
     res.status(200).json(req.member);
 });
 
-
-const genQRCode = asyncHandler(async (req, res) => {
-    // Extract only the paymentCode from the member data
-    const {paymentCode, fullName} = req.member.toObject();
-
-    // Generate QR code as a Base64 string
-    try {
-        // Generates the QR code as a Data URL
-//        const qrCodeBase64 = await qrcode.toDataURL(paymentCode);
-
-        // Return the QR code in the response
-        res.status(200).json({qrCode: paymentCode});
-    } catch (error) {
-        res.status(500).json({message: 'Error generating QR code', error: error.message});
-    }
-});
-
-// @desc    Get referral members under a specific referral code
-// @route   GET /api/member/referral
-// @access  Private
 const getReferral = asyncHandler(async (req, res) => {
     try {
         // Find the member and populate referrals at each level
@@ -416,7 +393,14 @@ const getReferral = asyncHandler(async (req, res) => {
     }
 });
 
-
+const getTotalLiveVIP = async () => {
+    try {
+        return await Member.countDocuments({type: 'VIP'});
+    } catch (error) {
+        console.error('Error counting VIP members:', error.message);
+        return null;
+    }
+};
 
 // Generate JWT Token
 const generateToken = (id) => {
@@ -447,4 +431,4 @@ const generateReferralCode = (fullName) => {
     return referralCode;
 };
 
-module.exports = {registerMember, loginMember, updateMember, getMember, inviteMember, genQRCode, getReferral};
+module.exports = {registerMember, loginMember, getMember, updateMember, inviteMember, getReferral};

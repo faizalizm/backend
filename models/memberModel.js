@@ -33,10 +33,6 @@ const memberSchema = new mongoose.Schema({
         required: [true, 'Please add your phone'],
         unique: true
     },
-    paymentCode: {
-        type: String,
-        default: null
-    },
     referredBy: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Member',

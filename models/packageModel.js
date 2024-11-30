@@ -15,6 +15,11 @@ const packageSchema = new mongoose.Schema({
             message: 'Invalid Base64 Image Format.'
         }
     },
+    type: {
+        type: String,
+        required: [true, 'Please add type'],
+        enum: ['VIP', 'Topup']
+    },
     name: {
         type: String,
         required: [true, 'Please add name']
@@ -24,14 +29,14 @@ const packageSchema = new mongoose.Schema({
         required: [true, 'Please add description'],
         unique: true
     },
+    price: {
+        type: String,
+        default: null // User set if topup
+    },
     code: {
         type: String,
         required: [true, 'Please add code'],
-        unique: true
-    },
-    price: {
-        type: String,
-        required: [true, 'Please add price'],
+        unique: true // ToyyibPay categoryCode
     },
     paymentChannel: {
         type: String,

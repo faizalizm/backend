@@ -1,32 +1,51 @@
 const mongoose = require('mongoose');
 
 const transactionSchema = new mongoose.Schema({
-    memberId: {
+    walletId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Member', // Reference to the referred member
+        ref: 'Wallet', // Reference to the referred wallet
         required: true
+    },
+    systemType: {
+        type: String,
+        required: true,
+        enum: ['HubWallet', 'HubPoints'] // Differentiate between the systems
     },
     type: {
         type: String,
         required: [true, 'Please add type'],
         enum: [
+            'Credit', // Added
+            'Debit' // Deducted
+        ]
+    },
+    description: {
+        type: String,
+        required: [true, 'Please add description'],
+        enum: [
+            'Top Up',
+            'Withdrawal',
             'Transfer via Phone',
             'Transfer via Email',
-            'Transfer via QR Payment',
-            'Withdrawal',
-            'Top Up',
-            'VIP Payment'
-        ],
+            'QR Payment',
+            'VIP Payment',
+            'Redeem',
+            'Cashback'
+        ]
     },
     status: {
         type: String,
         required: [true, 'Please add status'],
-        enum: ['In Progress', 'Success', 'Failed', 'Expired'],
+        enum: ['In Progress', 'Success', 'Failed', 'Expired']
     },
     recipientMemberId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Member', // Reference to the recipient member
         default: null // For transfer
+    },
+    billCode: {
+        type: String,
+        default: null // For Topup
     },
     paymentCode: {
         type: String,
@@ -40,10 +59,6 @@ const transactionSchema = new mongoose.Schema({
         type: Number,
         required: [true, 'Please specify the amount'],
         min: [0, 'Amount must be a positive number']
-    },
-    notes: {
-        type: String,
-        default: null, // Optional field for additional transaction info
     }
 }, {
     timestamps: true

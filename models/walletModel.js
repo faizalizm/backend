@@ -10,32 +10,14 @@ const walletSchema = new mongoose.Schema({
         type: Number, // Using Number for calculations
         required: [true, 'Balance is required'],
         default: 0, // Default balance is 0
-        min: [0, 'Balance Cannot Be Negative'], // Prevent negative balances
+        min: [0, 'Balance Cannot Be Negative'] // Prevent negative balances
     },
     currency: {
-      type: String,
-      default: 'MYR', // Default currency
-      enum: ['MYR'] // Restrict to supported currencies
-    },
-    email: {
         type: String,
-        required: [true, 'Please add your email'],
-        unique: true
-    },
-    password: {
-        type: String,
-        required: [true, 'Please add your password'],
-        unique: true
-    },
-    phone: {
-        type: String,
-        required: [true, 'Please add your phone']
+        default: 'MYR', // Default currency
+        enum: ['MYR'] // Restrict to supported currencies
     },
     paymentCode: {
-        type: String,
-        default: null
-    },
-    referralCode: {
         type: String,
         default: null
     }

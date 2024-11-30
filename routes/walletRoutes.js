@@ -6,7 +6,8 @@ const {
     topupWallet,
     withdrawWallet,
     transferWallet,
-    spendWallet
+    spendWallet,
+    genQRCode
 } = require('../controllers/walletController');
 
 const router = express.Router();
@@ -16,5 +17,6 @@ router.post('/topup', protect, topupWallet);
 router.post('/withdraw', protect, withdrawWallet);
 router.post('/transfer', protect, transferWallet);
 router.post('/spend', protect, spendWallet);
+router.get('/qrcode', protect, genQRCode);
 
 module.exports = router;
