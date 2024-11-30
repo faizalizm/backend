@@ -1,32 +1,40 @@
 {
-  "name": "backend",
-  "version": "1.0.0",
-  "description": "mobile-app-backend",
-  "main": "app.js",
-  "scripts": {
-    "start": "nodemon app.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "engines": {
-    "node": "22.x"
-  },
-  "keywords": [],
-  "author": "faizalismail",
-  "license": "ISC",
-  "dependencies": {
-    "axios": "^1.7.7",
-    "bcryptjs": "^2.4.3",
-    "colors": "^1.4.0",
-    "cors": "^2.8.5",
-    "dotenv": "^16.4.5",
-    "express": "^4.21.1",
-    "express-async-handler": "^1.2.0",
-    "jsonwebtoken": "^9.0.2",
-    "mongoose": "^8.8.2",
-    "morgan": "^1.10.0",
-    "qrcode": "^1.5.4",
-    "swagger-jsdoc": "^6.2.8",
-    "swagger-ui-express": "^5.0.1"
-  },
-  "private": true
+    "name": "backend",
+    "version": "1.0.0",
+    "description": "mobile-app-backend",
+    "main": "app.js",
+    "scripts": {
+        "start": "nodemon server.js",
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "engines": {
+        "node": "22.x"
+    },
+    "keywords": [],
+    "author": "faizalismail",
+    "license": "ISC",
+    "dependencies": {
+        "axios": "^1.7.7",
+        "bcryptjs": "^2.4.3",
+        "colors": "^1.4.0",
+        "cors": "^2.8.5",
+        "dotenv": "^16.4.5",
+        "express": "^4.21.1",
+        "express-async-handler": "^1.2.0",
+        "jsonwebtoken": "^9.0.2",
+        "mongoose": "^8.8.2",
+        "morgan": "^1.10.0",
+        "qrcode": "^1.5.4",
+        "swagger-jsdoc": "^6.2.8",
+        "swagger-ui-express": "^5.0.1",
+        "winston": "^3.17.0",
+        "winston-daily-rotate-file": "^5.0.0"
+    },
+    "private": true,
+    "devDependencies": {
+        "eslint": "^9.15.0",
+        "eslint-config-prettier": "^9.1.0",
+        "eslint-plugin-prettier": "^5.2.1",
+        "prettier": "^3.4.1"
+    }
 }

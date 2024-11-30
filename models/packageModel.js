@@ -23,6 +23,11 @@ const packageSchema = new mongoose.Schema({
         type: String,
         required: [true, 'Please add your description'],
         unique: true
+    },
+    packageCode: {
+        type: String,
+        required: [true, 'Please add your packageCode'],
+        unique: true
     }
 }, {
     timestamps: true
