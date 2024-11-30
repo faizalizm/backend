@@ -123,6 +123,34 @@ const purchasePackage = asyncHandler(async (req, res) => {
         }
         const paymentUrl = process.env.TOYYIB_URL + '/' + billCode;
 
+        const toyyibCreateBillUrl = `${toyyibBaseUrl}/index.php/api/createBill`;
+
+//        const toyyibGetBillStatusUrl = `${toyyibBaseUrl}/index.php/api/getBillTransactions`;
+//        getCreateBillResponse = await axiosInstance.post(
+//                toyyibCreateBillUrl,
+//                new URLSearchParams({
+//                    billCode: billCode,
+//                    categoryCode: package.code,
+//                    billName: getCategoryResponse.data.CategoryName,
+//                    billDescription: getCategoryResponse.data.categoryDescription,
+//                    billPriceSetting: 1, // 1 = Fixed Value || 2 = Buyer Set Amount
+//                    billPayorInfo: 0, // 0 = No Payor Info || 1 = Request Payor Info
+//                    billAmount: package.price,
+//                    billReturnUrl: '',
+//                    billCallbackUrl: callbackUrl,
+////                    billTo: req.member.fullName,
+////                    billEmail: req.member.email,
+////                    billPhone: req.member.phone,
+//                    billContentEmail: package.emailContent, // Max 1000 chars
+//                    billPaymentChannel: package.paymentChannel, // 0 = FPX || 1 = CC || 2 = BOTH
+//                    billChargeToCustomer: 0, // 0 = Charge bill to cust || Off if charge owner
+//                    billExpiryDate: '', // Current Time + 5 Minute = 17-12-2020 17:00:00
+//                    enableFPXB2B: 1, // 1 = FPX (Corporate Banking) payment channel
+//                    chargeFPXB2B: package.packageCharge // 0 = Charge owner || 1 = Charge bill owner
+//                }),
+//                {headers: {'Content-Type': 'application/x-www-form-urlencoded'}});
+
+
         // Return the response to the client
         res.status(200).json({paymentUrl});
 

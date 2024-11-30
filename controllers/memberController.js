@@ -23,11 +23,16 @@ const registerMember = asyncHandler(async (req, res) => {
     }
 
     // Check if member is already registered
-    const memberExist = await Member.findOne({email});
+    const memberExist = await Member.findOne({
+        $or: [
+            {email: email}, // Check for existing email
+            {phone: phone}  // Check for existing phone number
+        ]
+    });
 
     if (memberExist) {
         res.status(400);
-        throw new Error('Email is already in use');
+        throw new Error('Email or Phone is already in use');
     }
 
     // Password hashing
@@ -307,7 +312,7 @@ const updateMember = asyncHandler(async (req, res) => {
 // @access  Private
 const getMember = asyncHandler(async (req, res) => {
     // Exclude the paymentCode field from the response
-    const {paymentCode, referrals, ...memberData} = req.member.toObject();
+    const {paymentCode, referrals, _id, createdAt, updatedAt, __v, ...memberData} = req.member.toObject();
 
     if (!req.member.referredBy) {
         memberData.referredBy = 'Not Available';
@@ -333,10 +338,10 @@ const genQRCode = asyncHandler(async (req, res) => {
     // Generate QR code as a Base64 string
     try {
         // Generates the QR code as a Data URL
-        const qrCodeBase64 = await qrcode.toDataURL(paymentCode);
+//        const qrCodeBase64 = await qrcode.toDataURL(paymentCode);
 
         // Return the QR code in the response
-        res.status(200).json({qrCode: qrCodeBase64});
+        res.status(200).json({qrCode: paymentCode});
     } catch (error) {
         res.status(500).json({message: 'Error generating QR code', error: error.message});
     }
