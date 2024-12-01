@@ -15,8 +15,7 @@ const preloadPackage = async () => {
                 type: 'Topup',
                 name: 'HubWallet Cash Topup',
                 description: 'Add cash to your wallet to make payments and transfers',
-//                price: '25000',
-                code: 'xvzexbil',
+                code: 'tvsgrp0h',
                 emailContent: 'You have successfully top-up your HubWallet Cash',
                 paymentChannel: 0,
                 packageCharge: 0
@@ -47,7 +46,7 @@ const preloadPackage = async () => {
                 description: 'Become a RewardHub VIP and get merchandise for men',
                 price: '25000',
                 code: 'VIP3',
-                emailContent: 'Thank you for purchasing HUB GIFT PACK (MEN), we wish you a pleasant journey in using RewardsHub to spend & earn',
+                emailContent: 'Thank you for purchasing HUB GIFT PACK (MEN) 2, we wish you a pleasant journey in using RewardsHub to spend & earn',
                 paymentChannel: 0,
                 packageCharge: 0
             },
@@ -57,7 +56,7 @@ const preloadPackage = async () => {
                 description: 'Become a RewardHub VIP and get merchandise for women',
                 price: '25000',
                 code: 'VIP4',
-                emailContent: 'Thank you for purchasing HUB GIFT PACK (WOMEN), we wish you a pleasant journey in using RewardsHub to spend & earn',
+                emailContent: 'Thank you for purchasing HUB GIFT PACK (WOMEN) 2, we wish you a pleasant journey in using RewardsHub to spend & earn',
                 paymentChannel: 0,
                 packageCharge: 0
             }
