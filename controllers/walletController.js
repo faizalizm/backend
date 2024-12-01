@@ -1,6 +1,10 @@
 const asyncHandler = require('express-async-handler');
 const moment = require('moment-timezone');
+const fs = require('fs');
+const path = require('path');
+const nodemailer = require('nodemailer');
 const axiosInstance = require('../services/axios');
+const Member = require('../models/memberModel');
 const Wallet = require('../models/walletModel');
 const Package = require('../models/packageModel');
 const Transaction = require('../models/transactionModel');
@@ -16,14 +20,14 @@ const getWallet = asyncHandler(async (req, res) => {
     // Calculate the date 90 days ago
     const ninetyDaysAgo = new Date();
     ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
-    console.log('ninetyDaysAgo: ' + ninetyDaysAgo);
+    console.log('Ninety Days Ago: ' + ninetyDaysAgo);
 
     // Find all transactions linked to the wallet
     const transactions = await Transaction.find({
         systemType: 'HubWallet',
         walletId: wallet._id,
         createdAt: {$gte: ninetyDaysAgo}
-    }).sort({createdAt: -1});
+    }).select('-_id -walletId -__v').sort({createdAt: -1});
 
     res.json({
         balance: wallet.balance,
@@ -76,8 +80,8 @@ const queryBillStatus = async (memberId, walletInfo, amount, toyyibBaseUrl, toyy
                 console.log('Bill has been paid. Updating wallet balance and transaction.');
 
                 const transaction = await Transaction.findOne({billCode});
-                if (transaction && transaction.status !== 'Success') {
-                    const wallet = await Wallet.findOne({_id: walletInfo.id, memberId}).select('-paymentCode -createdAt -updatedAt -__v');
+                if (transaction && transaction.status !== 'Success') { // Check if transaction already updated
+                    const wallet = await Wallet.findOne({_id: walletInfo._id, memberId}).select('-paymentCode -createdAt -updatedAt -__v');
                     if (!wallet)
                         throw new Error('Wallet Not Found');
 
@@ -226,7 +230,7 @@ const topupWallet = asyncHandler(async (req, res) => {
         }
         const paymentUrl = process.env.TOYYIB_URL + '/' + billCode;
 
-        // Create Member
+        // Create Transaction
         const transaction = await Transaction.create({
             walletId: wallet._id,
             systemType: 'HubWallet',
@@ -238,30 +242,180 @@ const topupWallet = asyncHandler(async (req, res) => {
             amount: amount
         });
 
-        queryBillStatus(req.member.id, wallet, amount, TOYYIB_URL, TOYYIB_SECRET, billCode);
+        queryBillStatus(req.member._id, wallet, amount, TOYYIB_URL, TOYYIB_SECRET, billCode);
 
         // Return the response to the client
         res.status(200).json({paymentUrl});
 
     } catch (error) {
-        res.status(404);
-        throw new Error('Bill Could Not Be Created');
+        res.status(500);
+        throw new Error('Topup failed, please try again later');
     }
 });
 
 const withdrawWallet = asyncHandler(async (req, res) => {
-    res.status(404);
-    throw new Error('No Yet Ready');
+    const {amount, bankName, bankAccountName, bankAccountNumber} = req.body;
+    const minWithdrawal = 10000;
+
+    if (!amount || !bankName || !bankAccountName || !bankAccountNumber) {
+        res.status(400);
+        throw new Error('Please add all fields');
+    }
+
+    if (amount <= 0) {
+        res.status(400);
+        throw new Error('Invalid withdrawal amount');
+    }
+
+    if (!/^\d+$/.test(bankAccountNumber)) {
+        res.status(400);
+        throw new Error('Invalid bank account number format');
+    }
+
+    if (amount < minWithdrawal) {
+        res.status(400);
+        throw new Error(`Amount must be at least ${minWithdrawal}`);
+    }
+
+    // Find the wallet linked to the member
+    const wallet = await Wallet.findOne({memberId: req.member._id});
+    if (!wallet) {
+        res.status(404);
+        throw new Error('Wallet Not Found');
+    }
+
+    console.log(`Wallet Balance: ${wallet.balance}, Withdrawal Amount: ${amount}`);
+    // Check if wallet balance is sufficient for the withdrawal
+    if (wallet.balance < amount) {
+        res.status(402); // HTTP 402: Payment Required
+        throw new Error('Insufficient funds');
+    }
+
+    try {
+        // Create Transaction
+        const transaction = await Transaction.create({
+            walletId: wallet._id,
+            systemType: 'HubWallet',
+            type: 'Debit',
+            description: 'Withdrawal',
+            status: 'In Progress',
+            amount: amount,
+            bankName, bankAccountName, bankAccountNumber
+        });
+
+        if (!transaction) {
+            res.status(500);
+            throw new Error('Failed to create transaction');
+        }
+
+        wallet.balance -= amount;
+        await wallet.save();
+
+        // Notify Admin (Asynchronously)
+        setImmediate(() => sendWithdrawalNotification(req.member, transaction));
+
+        res.status(200).json({
+            balance: wallet.balance,
+            currency: wallet.currency
+        });
+    } catch (error) {
+        console.error('Error processing withdrawal:', error);
+
+        res.status(500);
+        throw new Error('Withdrawal failed, please try again later');
+    }
 });
 
 const transferWallet = asyncHandler(async (req, res) => {
-    res.status(404);
-    throw new Error('No Yet Ready');
+    const {email, phone, amount} = req.body;
+
+    if (!email && !phone) {
+        res.status(400);
+        throw new Error('Email or phone is required for transfer');
+    }
+
+    if (!amount) {
+        res.status(400);
+        throw new Error('Amount is required');
+    }
+
+    if (email.trim() === req.member.email) {
+        res.status(400);
+        throw new Error('Could not transfer to your own account');
+    }
+
+    let recipient;
+    let description;
+    if (phone) {
+        description = 'Transfer via Phone';
+        recipient = await Member.findOne({phone});
+    } else if (email) {
+        description = 'Transfer via Email';
+        recipient = await Member.findOne({email});
+    }
+
+    if (!recipient) {
+        res.status(404);
+        throw new Error('Recipient Not Found');
+    }
+
+    const senderWallet = await Wallet.findOne({memberId: req.member._id});
+    if (!senderWallet) {
+        res.status(404);
+        throw new Error('Sender Wallet Not Found');
+    }
+
+    const recipientWallet = await Wallet.findOne({memberId: recipient._id});
+    if (!recipientWallet) {
+        res.status(404);
+        throw new Error('Recipient Wallet Not Found');
+    }
+
+    const senderTransaction = await Transaction.create({
+        walletId: senderWallet._id,
+        systemType: 'HubWallet',
+        type: 'Debit',
+        description,
+        status: 'Success',
+        counterpartyWalletId: recipientWallet._id,
+        amount: amount
+    });
+
+    const recipientTransaction = await Transaction.create({
+        walletId: recipientWallet._id,
+        systemType: 'HubWallet',
+        type: 'Credit',
+        description,
+        status: 'Success',
+        counterpartyWalletId: senderWallet._id,
+        amount: amount
+    });
+
+    if (senderTransaction && recipientTransaction) {
+
+        // Check if wallet balance is sufficient for the withdrawal
+        if (senderWallet.balance < amount) {
+            res.status(402); // HTTP 402: Payment Required
+            throw new Error('Insufficient funds');
+        }
+
+        console.log(`Sender Balance: ${senderWallet.balance}, Transfer Amount: ${amount}`);
+        console.log(`Recipient Balance: ${recipientWallet.balance}, Transer Amount: ${amount}`);
+
+        senderWallet.balance -= amount;
+        await senderWallet.save();
+
+        recipientWallet.balance += amount;
+        await recipientWallet.save();
+    } else {
+        res.status(500);
+        throw new Error('Transfer failed, please try again later');
+    }
 });
 
-const spendWallet = asyncHandler(async (req, res) => {
+const qrPaymentWallet = asyncHandler(async (req, res) => {
     res.status(404);
-    throw new Error('No Yet Ready');
+    throw new Error('Not Yet Ready');
 });
 
 const genQRCode = asyncHandler(async (req, res) => {
@@ -282,4 +436,46 @@ const genQRCode = asyncHandler(async (req, res) => {
     }
 });
 
-module.exports = {getWallet, topupWallet, withdrawWallet, transferWallet, spendWallet, genQRCode};
+const sendWithdrawalNotification = async (member, transaction) => {
+    const htmlTemplatePath = path.join(__dirname, '..', 'email', 'walletWithdrawal.html');
+    let htmlContent = fs.readFileSync(htmlTemplatePath, 'utf-8');
+
+    // Replace placeholders with actual data
+    htmlContent = htmlContent.replace('${member.fullName}', member.fullName);
+    htmlContent = htmlContent.replace('${member.email}', member.email);
+    htmlContent = htmlContent.replace('${member.phone}', member.phone);
+
+    htmlContent = htmlContent.replace('${bankName}', transaction.bankName);
+    htmlContent = htmlContent.replace('${bankAccountName}', transaction.bankAccountName);
+    htmlContent = htmlContent.replace('${bankAccountNumber}', transaction.bankAccountNumber);
+
+    htmlContent = htmlContent.replace('${amount}', transaction.amount);
+
+    try {
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: process.env.EMAIL_NOREPLY,
+                pass: process.env.EMAIL_PWD
+            }
+        });
+
+        await transporter.sendMail({
+            from: process.env.EMAIL_NOREPLY,
+            to: process.env.EMAIL_ADMIN,
+            subject: 'RewardsHub Cash Withdrawal Request',
+            html: htmlContent,
+            messageId: `invite-${Date.now()}@gmail.com`,
+            headers: {
+                'X-Priority': '1',
+                'X-Mailer': 'Nodemailer'
+            }
+        });
+
+        console.log('Admin notification sent successfully');
+    } catch (error) {
+        console.error('Failed to send admin notification:', error);
+    }
+};
+
+module.exports = {getWallet, topupWallet, withdrawWallet, transferWallet, qrPaymentWallet, genQRCode};

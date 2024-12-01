@@ -27,7 +27,6 @@ const packageSchema = new mongoose.Schema({
     description: {
         type: String,
         required: [true, 'Please add description'],
-        unique: true
     },
     price: {
         type: String,
@@ -50,7 +49,7 @@ const packageSchema = new mongoose.Schema({
     },
     emailContent: {
         type: String,
-        required: [true, 'Please add emailContent'],
+        required: [true, 'Please add emailContent']
     }
 }, {
     timestamps: true

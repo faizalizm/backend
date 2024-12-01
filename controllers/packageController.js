@@ -25,7 +25,7 @@ const getPackage = asyncHandler(async (req, res) => {
 const purchasePackage = asyncHandler(async (req, res) => {
     const {code} = req.body;
 
-    console.log(req.member.type)
+    console.log(req.member.type);
     if (req.member.type === "VIP") {
         res.status(400);
         throw new Error('Member is already a VIP');
@@ -35,7 +35,7 @@ const purchasePackage = asyncHandler(async (req, res) => {
         res.status(400);
         throw new Error('Package code is required');
     }
-    
+
     const package = await Package.findOne({code, type: 'VIP'});
     if (!package) {
         res.status(404);
@@ -62,6 +62,17 @@ const purchasePackage = asyncHandler(async (req, res) => {
 
     req.member.type = 'VIP';
     await req.member.save();
+
+    // Create Transaction
+    const transaction = await Transaction.create({
+        walletId: wallet._id,
+        systemType: 'HubWallet',
+        type: 'Debit',
+        description: 'VIP Payment',
+        status: 'Success',
+        packageCode: code,
+        amount: package.price
+    });
 
     res.status(200).json({
         message: 'Package purchased successfully. You have upgraded to VIP!',

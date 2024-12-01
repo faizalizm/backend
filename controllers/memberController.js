@@ -3,13 +3,16 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const asyncHandler = require('express-async-handler');
 const qrcode = require('qrcode');
+const fs = require('fs');
+const path = require('path');
+const nodemailer = require('nodemailer');
 const Member = require('../models/memberModel');
 const Wallet = require('../models/walletModel');
 
 const registerMember = asyncHandler(async (req, res) => {
     const {fullName, email, password, phone, referredBy} = req.body;
 
-    if (!fullName || !email || !password || !phone) {
+    if (!fullName || !email || !password || !phone || !referredBy) {
         res.status(400);
         throw new Error('Please add all fields');
     }
@@ -78,7 +81,7 @@ const registerMember = asyncHandler(async (req, res) => {
         paymentCode = "payment://" + generatePaymentCode(); // Generate a new payment code
 
         // Check if the payment code already exists in the database
-        const existingPaymentCode = await Member.findOne({paymentCode});
+        const existingPaymentCode = await Wallet.findOne({paymentCode});
 
         if (!existingPaymentCode) {
             isPaymentCodeUnique = true; // If no existing member found, the code is unique
@@ -92,87 +95,92 @@ const registerMember = asyncHandler(async (req, res) => {
         paymentCode
     });
 
-    if (member) {// If there is a referrer, add the new member to their referral list
-        if (referrer) {
-            // Find the level 1 entry (without referrerId for direct upline)
-            let levelEntry = referrer.referrals.find(entry => entry.level === "1");
+    try {
+        if (member) {// If there is a referrer, add the new member to their referral list
+            if (referrer) {
+                // Find the level 1 entry (without referrerId for direct upline)
+                let levelEntry = referrer.referrals.find(entry => entry.level === "1");
 
-            // If no level entry for level 1, create one
-            if (!levelEntry) {
-                levelEntry = {
-                    level: "1",
-                    referrals: [{
-                            memberId: member._id, // Only the memberId is required for Level 1
-                            referredAt: Date.now()
-                        }]
-                };
-                referrer.referrals.push(levelEntry);
-            }
-
-            // Debugging: log what we added to Level 1 referrals
-            console.log(``);
-            console.log(`Added ${member.fullName} to ${referrer.fullName}'s Level 1 referrals`);
-
-            // Save the referrer with the new referral added
-            await referrer.save();
-
-            // Propagate referrals up to 20 levels (starting from Level 2)
-            let currentReferrer = referrer.referredBy
-                    ? await Member.findById(referrer.referredBy)
-                    : null;
-            let currentLevel = 2; // Start at Level 2 since Level 1 is already handled
-
-            while (currentReferrer && currentLevel <= 20) {
-                const levelString = currentLevel.toString();
-
-                let parentLevelEntry = currentReferrer.referrals.find(
-                        entry => entry.level === levelString
-                );
-
-                if (!parentLevelEntry) {
-                    parentLevelEntry = {
-                        level: levelString,
+                // If no level entry for level 1, create one
+                if (!levelEntry) {
+                    levelEntry = {
+                        level: "1",
                         referrals: [{
-                                referrerId: referrer._id, // Add referrerId for higher levels
-                                memberId: member._id,
+                                memberId: member._id, // Only the memberId is required for Level 1
                                 referredAt: Date.now()
                             }]
                     };
-                    currentReferrer.referrals.push(parentLevelEntry);
-                } else {
-                    const referrals = {
-                        referrerId: referrer._id, // Add referrerId for higher levels
-                        memberId: member._id,
-                        referredAt: Date.now()
-                    };
-                    parentLevelEntry.referrals.push(referrals);
+                    referrer.referrals.push(levelEntry);
                 }
 
-                await currentReferrer.save();
-                console.log(`Added ${referrer.fullName} to ${currentReferrer.fullName}'s Level ${currentLevel} referrals`);
+                // Debugging: log what we added to Level 1 referrals
+                console.log(``);
+                console.log(`Added ${member.fullName} to ${referrer.fullName}'s Level 1 referrals`);
 
-                // Move up the referral chain, updating the referrer for the next level
-//                referrer = currentReferrer;
-                currentReferrer = currentReferrer.referredBy
-                        ? await Member.findById(currentReferrer.referredBy)
+                // Save the referrer with the new referral added
+                await referrer.save();
+
+                // Propagate referrals up to 20 levels (starting from Level 2)
+                let currentReferrer = referrer.referredBy
+                        ? await Member.findById(referrer.referredBy)
                         : null;
+                let currentLevel = 2; // Start at Level 2 since Level 1 is already handled
 
-                currentLevel++;
+                while (currentReferrer && currentLevel <= 20) {
+                    const levelString = currentLevel.toString();
+
+                    let parentLevelEntry = currentReferrer.referrals.find(
+                            entry => entry.level === levelString
+                    );
+
+                    if (!parentLevelEntry) {
+                        parentLevelEntry = {
+                            level: levelString,
+                            referrals: [{
+                                    referrerId: referrer._id, // Add referrerId for higher levels
+                                    memberId: member._id,
+                                    referredAt: Date.now()
+                                }]
+                        };
+                        currentReferrer.referrals.push(parentLevelEntry);
+                    } else {
+                        const referrals = {
+                            referrerId: referrer._id, // Add referrerId for higher levels
+                            memberId: member._id,
+                            referredAt: Date.now()
+                        };
+                        parentLevelEntry.referrals.push(referrals);
+                    }
+
+                    await currentReferrer.save();
+                    console.log(`Added ${referrer.fullName} to ${currentReferrer.fullName}'s Level ${currentLevel} referrals`);
+
+                    // Move up the referral chain, updating the referrer for the next level
+//                referrer = currentReferrer;
+                    currentReferrer = currentReferrer.referredBy
+                            ? await Member.findById(currentReferrer.referredBy)
+                            : null;
+
+                    currentLevel++;
+                }
             }
+
+
+            res.status(201).json({
+                fullName: member.fullName,
+                email: member.email,
+                phone: member.phone,
+                referralCode: member.referralCode,
+                referredBy: referrer ? referrer.referralCode : null,
+                token: generateToken(member._id)
+            });
+        } else {
+            res.status(400);
+            throw new Error('Invalid Member Data');
         }
-
-
-        res.status(201).json({
-            fullName: member.fullName,
-            email: member.email,
-            phone: member.phone,
-            referralCode: member.referralCode,
-            referredBy: referrer ? referrer.referralCode : null,
-            token: generateToken(member._id)
-        });
-    } else {
+    } catch (error) {
         res.status(400);
-        throw new Error('Invalid member data');
+        throw new Error(`Registration Failed ${error}`);
     }
 });
 
@@ -324,7 +332,45 @@ const updateMember = asyncHandler(async (req, res) => {
 });
 
 const inviteMember = asyncHandler(async (req, res) => {
-    res.status(200).json(req.member);
+    const {email, phone} = req.body;
+
+    if (!email && !phone) {
+        res.status(400);
+        throw new Error('Email or phone is required for invitation');
+    }
+
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        res.status(400);
+        throw new Error('Invalid email format');
+    }
+
+    if (phone && !/^\+?[1-9]\d{1,14}$/.test(phone)) {
+        res.status(400);
+        throw new Error('Invalid phone number format');
+    }
+
+    if (!req.member.referralCode) {
+        res.status(500);
+        throw new Error('Referral code is missing');
+    }
+
+    const sanitizedEmail = email?.trim();
+    const sanitizedPhone = phone?.trim();
+    if (sanitizedEmail === req.member?.email || sanitizedPhone === req.member?.phone) {
+        res.status(400);
+        throw new Error('Could not invite yourself');
+    }
+
+    const appPackage = process.env.APP_PACKAGE;
+    const playStoreInvitation = `https://play.google.com/store/apps/details?id=${appPackage}&hl=en&pli=1&ref=${req.member.referralCode}`;
+
+    if (email) {
+        // Send the invitation email (Asynchronously)
+        setImmediate(() => sendInvitationEmail(sanitizedEmail, req.member.referralCode, playStoreInvitation));
+    }
+
+    // Respond with the Play Store invitation link
+    res.status(200).json({invitationLink: playStoreInvitation});
 });
 
 const getReferral = asyncHandler(async (req, res) => {
@@ -430,5 +476,48 @@ const generateReferralCode = (fullName) => {
     const referralCode = namePart + randomDigits;
     return referralCode;
 };
+
+const sendInvitationEmail = async (recipientEmail, referralCode, playStoreInvitation) => {
+    // Fetch and modify HTML template
+    const htmlTemplatePath = path.join(__dirname, '..', 'email', 'referralInvitation.html');
+    let htmlContent = fs.readFileSync(htmlTemplatePath, 'utf-8');
+
+    // Replace placeholders with actual data
+    htmlContent = htmlContent.replace('${referralCode}', referralCode);
+    htmlContent = htmlContent.replace('${playStoreInvitation}', playStoreInvitation);
+
+    console.table({
+        senderEmail: process.env.EMAIL_NOREPLY,
+        recipientEmail});
+
+    try {
+        const transporter = nodemailer.createTransport({
+            service: 'gmail', // Email service (e.g., Outlook, SendGrid)
+            auth: {
+                user: process.env.EMAIL_NOREPLY,
+                pass: process.env.EMAIL_PWD
+            }
+        });
+
+        // Email options
+        await transporter.sendMail({
+            from: process.env.EMAIL_NOREPLY,
+            to: recipientEmail,
+            replyTo: process.env.EMAIL_ADMIN,
+            subject: 'Explore Rewards Hub!',
+            html: htmlContent,
+            messageId: `invite-${Date.now()}@gmail.com`, // The `Message-ID` ensures a new thread
+            headers: {
+                'X-Priority': '1', // High priority
+                'X-Mailer': 'Nodemailer' // Email client info
+            }
+        });
+
+        console.log('Admin notification sent successfully');
+    } catch (error) {
+        console.error('Failed to send admin notification:', error);
+    }
+};
+
 
 module.exports = {registerMember, loginMember, getMember, updateMember, inviteMember, getReferral};

@@ -17,7 +17,7 @@ router.post('/login', loginMember);
 
 router.get('/', protect, getMember);
 router.patch('/', protect, updateMember); // MBR-4, MBR-6, 
-//router.post('/invite', protect, inviteMember);
+router.post('/invite', protect, inviteMember);
 router.get('/referral', protect, getReferral);
 
 module.exports = router;

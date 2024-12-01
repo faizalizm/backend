@@ -26,7 +26,7 @@ const preloadPackage = async () => {
                 name: 'HUB GIFT PACK (MEN)',
                 description: 'Become a RewardHub VIP and get merchandise for men',
                 price: '25000',
-                code: '5430n0yy',
+                code: 'VIP1',
                 emailContent: 'Thank you for purchasing HUB GIFT PACK (MEN), we wish you a pleasant journey in using RewardsHub to spend & earn',
                 paymentChannel: 0,
                 packageCharge: 0
@@ -36,11 +36,31 @@ const preloadPackage = async () => {
                 name: 'HUB GIFT PACK (WOMEN)',
                 description: 'Become a RewardHub VIP and get merchandise for women',
                 price: '25000',
-                code: 'xs88o64q',
+                code: 'VIP2',
                 emailContent: 'Thank you for purchasing HUB GIFT PACK (WOMEN), we wish you a pleasant journey in using RewardsHub to spend & earn',
                 paymentChannel: 0,
                 packageCharge: 0
             },
+            {
+                type: 'VIP',
+                name: 'HUB GIFT PACK (MEN) 2',
+                description: 'Become a RewardHub VIP and get merchandise for men',
+                price: '25000',
+                code: 'VIP3',
+                emailContent: 'Thank you for purchasing HUB GIFT PACK (MEN), we wish you a pleasant journey in using RewardsHub to spend & earn',
+                paymentChannel: 0,
+                packageCharge: 0
+            },
+            {
+                type: 'VIP',
+                name: 'HUB GIFT PACK (WOMEN) 2',
+                description: 'Become a RewardHub VIP and get merchandise for women',
+                price: '25000',
+                code: 'VIP4',
+                emailContent: 'Thank you for purchasing HUB GIFT PACK (WOMEN), we wish you a pleasant journey in using RewardsHub to spend & earn',
+                paymentChannel: 0,
+                packageCharge: 0
+            }
         ];
 
         // Loop through packages and add them to the database if they don't already exist

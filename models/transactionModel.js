@@ -29,6 +29,8 @@ const transactionSchema = new mongoose.Schema({
             'Transfer via Email',
             'QR Payment',
             'VIP Payment',
+            'VIP Registration Commission',
+            'Spending Rewards',
             'Redeem',
             'Cashback'
         ]
@@ -38,9 +40,9 @@ const transactionSchema = new mongoose.Schema({
         required: [true, 'Please add status'],
         enum: ['In Progress', 'Success', 'Failed', 'Expired']
     },
-    recipientMemberId: {
+    counterpartyWalletId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Member', // Reference to the recipient member
+        ref: 'Wallet', // Reference to the recipient member
         default: null // For transfer
     },
     billCode: {
@@ -59,7 +61,19 @@ const transactionSchema = new mongoose.Schema({
         type: Number,
         required: [true, 'Please specify the amount'],
         min: [0, 'Amount must be a positive number']
-    }
+    },
+    bankName: {
+        type: String,
+        default: null // For Withdrawal
+    },
+    bankAccountName: {
+        type: String,
+        default: null // For Withdrawal
+    },
+    bankAccountNumber: {
+        type: Number,
+        default: null // For Withdrawal
+    },
 }, {
     timestamps: true
 });
