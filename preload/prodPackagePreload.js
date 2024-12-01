@@ -1,8 +1,8 @@
 const dotenv = require('dotenv').config();
 const colors = require('colors');
 
-const connectDB = require('./services/mongodb');
-const Package = require('./models/packageModel');
+const connectDB = require('../services/mongodb');
+const Package = require('../models/packageModel');
 
 // Connect to the database
 connectDB();
