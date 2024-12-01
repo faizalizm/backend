@@ -2,7 +2,7 @@
     "name": "backend",
     "version": "1.0.0",
     "description": "mobile-app-backend",
-    "main": "app.js",
+    "main": "server.js",
     "scripts": {
         "start": "nodemon server.js",
         "debug": "nodemon --inspect server.js",
