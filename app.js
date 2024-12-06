@@ -13,6 +13,8 @@ const swaggerSpec = require('./swagger/swagger');
 
 // ------ Database Connection
 connectDB();
+console.log("Current Date and Time:", new Date());
+console.log("Local Time:", new Date().toLocaleString());
 
 // ------ Middleware
 const app = express();

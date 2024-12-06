@@ -12,7 +12,7 @@ const Wallet = require('../models/walletModel');
 const registerMember = asyncHandler(async (req, res) => {
     const {fullName, email, password, phone, referredBy} = req.body;
 
-    if (!fullName || !email || !password || !phone || !referredBy) {
+    if (!fullName || !email || !password || !phone) {
         res.status(400);
         throw new Error('Please add all fields');
     }
@@ -34,6 +34,13 @@ const registerMember = asyncHandler(async (req, res) => {
     if (memberExist) {
         res.status(400);
         throw new Error('Email or Phone is already in use');
+    }
+
+    // Validate password strength (min 8 characters, max 20 characters, include at least 1 uppercase and 1 number)
+    const passwordRegex = /^(?=.*[A-Z])(?=.*\d)[A-Za-z\d]{8,20}$/;
+    if (!passwordRegex.test(password)) {
+        res.status(400);
+        throw new Error('Password must be between 8 and 20 characters, and include at least one uppercase letter and one number');
     }
 
     // Password hashing
@@ -106,6 +113,7 @@ const registerMember = asyncHandler(async (req, res) => {
                     levelEntry = {
                         level: "1",
                         referrals: [{
+                                referrerId: referrer._id,
                                 memberId: member._id, // Only the memberId is required for Level 1
                                 referredAt: Date.now()
                             }]
@@ -200,13 +208,16 @@ const loginMember = asyncHandler(async (req, res) => {
 
     if (member && (await bcrypt.compare(password, member.password))) {
         const totalLiveVIP = await getTotalLiveVIP();
+        const recentVip = await getRecentVIP();
+
         res.json({
             fullName: member.fullName,
             email: member.mail,
             phone: member.phone,
             referralCode: member.referralCode,
             token: generateToken(member._id),
-            totalLiveVIP
+            totalLiveVIP,
+            recentVip
         });
     } else {
         res.status(400);
@@ -219,7 +230,7 @@ const getMember = asyncHandler(async (req, res) => {
     const {referrals, _id, createdAt, updatedAt, __v, ...memberData} = req.member.toObject();
 
     if (!req.member.referredBy) {
-        memberData.referredBy = 'Not Available';
+        memberData.referredBy = 'Not Set';
     } else {
         const referrer = await Member.findOne({_id: req.member.referredBy});
         if (referrer) {
@@ -327,7 +338,7 @@ const updateMember = asyncHandler(async (req, res) => {
     const updatedMember = await Member.findByIdAndUpdate(req.member._id, updates, {
         new : true,
         runValidators: true // Ensures schema validation is applied
-    }).select('-_id -createdAt -updatedAt -__v -referrals -referredBy -referralCode -type');
+    }).select('-_id -vipAt -createdAt -updatedAt -__v -referrals -referredBy -referralCode -type -password');
     res.status(200).json(updatedMember);
 });
 
@@ -379,7 +390,7 @@ const getReferral = asyncHandler(async (req, res) => {
         const member = await Member.findById(req.member._id)
                 .populate({
                     path: 'referrals.referrals.memberId', // Populate memberId for nested referrals
-                    select: 'fullName' // Select only the fullName of referred members
+                    select: 'fullName type vipAt createdAt -_id' // Select only the fullName of referred members
                 })
                 .populate({
                     path: 'referrals.referrals.referrerId', // Populate referrerId for nested referrals (Level 2 and beyond)
@@ -391,46 +402,37 @@ const getReferral = asyncHandler(async (req, res) => {
             throw new Error('Member not found');
         }
 
-        // Construct the referral tree structure
         const referralData = {
-            fullName: member.fullName,
             referrals: []
         };
 
         // Iterate through each level of referrals
+        // Process referrals
         member.referrals.forEach(levelEntry => {
             levelEntry.referrals.forEach(referral => {
-                let referrer;
-                let memberFullName;
-                if (levelEntry.level.toString() === "1") {
-                    referrer = member._id;
-                    memberFullName = member.fullName;
-                } else {
-                    referrer = referral.referrerId ? referral.referrerId.fullName : 'Unknown Referrer';
-                    memberFullName = referral.memberId ? referral.memberId.fullName : 'Unknown Member';
-
-                }
-                const referredAt = referral.referredAt;
-
-                // Find or create a referrer entry in the tree
-                let referrerNode = referralData.referrals.find(r => r.referrerId === referrer);
+                let referrerNode = referralData.referrals.find(
+                        node => node.referrerFullName === (referral.referrerId?.fullName || 'Unknown Referrer')
+                );
 
                 if (!referrerNode) {
                     referrerNode = {
-                        referrerId: referrer,
-                        referrals: []
+                        referrerFullName: referral.referrerId?.fullName || 'Unknown Referrer',
+                        referrals: [],
                     };
                     referralData.referrals.push(referrerNode);
                 }
 
-                // Add the referral details for this referrer
                 referrerNode.referrals.push({
                     level: levelEntry.level,
-                    memberId: memberFullName,
-                    referredAt: referredAt
+                    memberFullName: referral.memberId?.fullName || 'Unknown Member',
+                    profilePicture: referral.memberId?.profilePicture || null,
+                    type: referral.memberId?.type || null,
+                    vipAt: referral.memberId?.vipAt || null,
+                    referredAt: referral.memberId?.createdAt || null,
                 });
             });
         });
+
 
         // Return the formatted response
         res.status(200).json(referralData);
@@ -443,7 +445,29 @@ const getTotalLiveVIP = async () => {
     try {
         return await Member.countDocuments({type: 'VIP'});
     } catch (error) {
-        console.error('Error counting VIP members:', error.message);
+        console.error('Error getting total Live VIP : ', error.message);
+        return null;
+    }
+};
+
+const getRecentVIP = async () => {
+    try {
+        const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000); // 24 hours ago
+        return await Member.find(
+                {
+                    type: 'VIP', // Match members with type VIP
+                    vipAt: {$gte: twentyFourHoursAgo} // Filter by vipAt >= 24 hours ago
+                },
+                {
+                    profilePicture: 1,
+                    fullName: 1,
+                    vipAt: 1,
+                    _id: 0 // Exclude the _id field
+                }
+        );
+
+    } catch (error) {
+        console.error('Error getting recent VIP : ', error.message);
         return null;
     }
 };

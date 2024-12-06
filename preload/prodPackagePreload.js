@@ -1,16 +1,6 @@
-const path = require('path');
-const dotenv = require('dotenv').config({path: path.join(__dirname, '..', '.env')});
-const colors = require('colors');
-
-const connectDB = require('../services/mongodb');
-const Package = require('../models/packageModel');
-
-// Connect to the database
-connectDB();
 
 const preloadPackage = async () => {
     try {
-        // Define package data
         const packages = [
             {
                 type: 'Topup',
@@ -18,7 +8,6 @@ const preloadPackage = async () => {
                 description: 'Add cash to your wallet to make payments and transfers',
                 code: 'tvsgrp0h',
                 emailContent: 'You have successfully top-up your HubWallet Cash',
-                paymentChannel: 0,
                 packageCharge: 0
             },
             {
@@ -28,7 +17,6 @@ const preloadPackage = async () => {
                 price: '25000',
                 code: 'VIP1',
                 emailContent: 'Thank you for purchasing HUB GIFT PACK (MEN), we wish you a pleasant journey in using RewardsHub to spend & earn',
-                paymentChannel: 0,
                 packageCharge: 0
             },
             {
@@ -38,7 +26,6 @@ const preloadPackage = async () => {
                 price: '25000',
                 code: 'VIP2',
                 emailContent: 'Thank you for purchasing HUB GIFT PACK (WOMEN), we wish you a pleasant journey in using RewardsHub to spend & earn',
-                paymentChannel: 0,
                 packageCharge: 0
             },
             {
@@ -48,7 +35,6 @@ const preloadPackage = async () => {
                 price: '25000',
                 code: 'VIP3',
                 emailContent: 'Thank you for purchasing HUB GIFT PACK (MEN) 2, we wish you a pleasant journey in using RewardsHub to spend & earn',
-                paymentChannel: 0,
                 packageCharge: 0
             },
             {
@@ -58,11 +44,9 @@ const preloadPackage = async () => {
                 price: '25000',
                 code: 'VIP4',
                 emailContent: 'Thank you for purchasing HUB GIFT PACK (WOMEN) 2, we wish you a pleasant journey in using RewardsHub to spend & earn',
-                paymentChannel: 0,
                 packageCharge: 0
             }
         ];
-
         // Loop through packages and add them to the database if they don't already exist
         for (const packageData of packages) {
             const existingPackage = await Package.findOne({name: packageData.name});
@@ -80,5 +64,4 @@ const preloadPackage = async () => {
     }
 };
 
-// Execute the preload function
-preloadPackage();
+module.exports = preloadPackage;

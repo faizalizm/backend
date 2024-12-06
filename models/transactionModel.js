@@ -9,14 +9,15 @@ const transactionSchema = new mongoose.Schema({
     systemType: {
         type: String,
         required: true,
-        enum: ['HubWallet', 'HubPoints'] // Differentiate between the systems
+        enum: ['FPX', 'HubWallet', 'HubPoints'] // Differentiate between the systems
     },
     type: {
         type: String,
         required: [true, 'Please add type'],
         enum: [
             'Credit', // Added
-            'Debit' // Deducted
+            'Debit', // Deducted
+            'N/A' // For FPX
         ]
     },
     description: {
@@ -73,7 +74,7 @@ const transactionSchema = new mongoose.Schema({
     bankAccountNumber: {
         type: Number,
         default: null // For Withdrawal
-    },
+    }
 }, {
     timestamps: true
 });

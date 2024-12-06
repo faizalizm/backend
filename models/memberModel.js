@@ -6,7 +6,7 @@ const memberSchema = new mongoose.Schema({
         default: null,
         validate: {
             validator: function (value) {
-                // Ensure the string is a valid Base64 image format (basic validation)
+                // Ensure the string is a valid Base64 image format
                 return (
                         value === null ||
                         /^data:image\/(jpg|jpeg|png);base64,/.test(value)
@@ -22,7 +22,7 @@ const memberSchema = new mongoose.Schema({
     email: {
         type: String,
         required: [true, 'Please add your email'],
-        unique: true
+        unique: true // Prevent register email twice
     },
     password: {
         type: String,
@@ -31,7 +31,7 @@ const memberSchema = new mongoose.Schema({
     phone: {
         type: String,
         required: [true, 'Please add your phone'],
-        unique: true
+        unique: true // Prevent register phone twice
     },
     referredBy: {
         type: mongoose.Schema.Types.ObjectId,
@@ -77,8 +77,12 @@ const memberSchema = new mongoose.Schema({
     },
     type: {
         type: String,
-        default: 'Normal', // Normal|VIP
-        enum: ['Normal', 'VIP'] // Restrict to allowed values
+        default: 'User', // User|VIP
+        enum: ['User', 'VIP'] // Restrict to allowed values
+    },
+    vipAt: {
+        type: Date,
+        default: null
     }
 }, {
     timestamps: true

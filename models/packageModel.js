@@ -26,7 +26,7 @@ const packageSchema = new mongoose.Schema({
     },
     description: {
         type: String,
-        required: [true, 'Please add description'],
+        required: [true, 'Please add description']
     },
     price: {
         type: String,
@@ -34,13 +34,12 @@ const packageSchema = new mongoose.Schema({
     },
     code: {
         type: String,
-        required: [true, 'Please add code'],
-        unique: true // ToyyibPay categoryCode
+        unique: true // code for frontend selection
     },
-    paymentChannel: {
+    categoryCode: {
         type: String,
-        required: [true, 'Please add paymentChannel'],
-        enum: ['0', '1', '2'] // 0 = FPX || 1 = CC || 2 = BOTH
+        required: [true, 'Please add categoryCode'],
+        unique: true // ToyyibPay categoryCode, only backend internal
     },
     packageCharge: {
         type: String,

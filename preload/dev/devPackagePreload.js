@@ -1,14 +1,15 @@
 const path = require('path');
-const dotenv = require('dotenv').config({path: path.join(__dirname, '..', '.env')});
+const dotenv = require('dotenv').config({path: path.join(__dirname, '..', '..', '.env')});
 const colors = require('colors');
 
-const connectDB = require('../services/mongodb');
-const Package = require('../models/packageModel');
+const connectDB = require('../../services/mongodb');
+const Package = require('../../models/packageModel');
 
 // Connect to the database
 connectDB();
 
 const preloadPackage = async () => {
+    console.log('🚀 Starting package preload process...'.blue);
     try {
         // Define package data
         const packages = [
@@ -16,9 +17,8 @@ const preloadPackage = async () => {
                 type: 'Topup',
                 name: 'HubWallet Cash Topup',
                 description: 'Add cash to your wallet to make payments and transfers',
-                code: 'tvsgrp0h',
+                categoryCode: 'xvzexbil',
                 emailContent: 'You have successfully top-up your HubWallet Cash',
-                paymentChannel: 0,
                 packageCharge: 0
             },
             {
@@ -27,8 +27,8 @@ const preloadPackage = async () => {
                 description: 'Become a RewardHub VIP and get merchandise for men',
                 price: '25000',
                 code: 'VIP1',
+                categoryCode: '5430n0yy',
                 emailContent: 'Thank you for purchasing HUB GIFT PACK (MEN), we wish you a pleasant journey in using RewardsHub to spend & earn',
-                paymentChannel: 0,
                 packageCharge: 0
             },
             {
@@ -37,8 +37,8 @@ const preloadPackage = async () => {
                 description: 'Become a RewardHub VIP and get merchandise for women',
                 price: '25000',
                 code: 'VIP2',
+                categoryCode: 'xs88o64q',
                 emailContent: 'Thank you for purchasing HUB GIFT PACK (WOMEN), we wish you a pleasant journey in using RewardsHub to spend & earn',
-                paymentChannel: 0,
                 packageCharge: 0
             },
             {
@@ -47,8 +47,8 @@ const preloadPackage = async () => {
                 description: 'Become a RewardHub VIP and get merchandise for men',
                 price: '25000',
                 code: 'VIP3',
+                categoryCode: '2a4jkpbj',
                 emailContent: 'Thank you for purchasing HUB GIFT PACK (MEN) 2, we wish you a pleasant journey in using RewardsHub to spend & earn',
-                paymentChannel: 0,
                 packageCharge: 0
             },
             {
@@ -57,8 +57,8 @@ const preloadPackage = async () => {
                 description: 'Become a RewardHub VIP and get merchandise for women',
                 price: '25000',
                 code: 'VIP4',
+                categoryCode: 'l5o659nv',
                 emailContent: 'Thank you for purchasing HUB GIFT PACK (WOMEN) 2, we wish you a pleasant journey in using RewardsHub to spend & earn',
-                paymentChannel: 0,
                 packageCharge: 0
             }
         ];
@@ -80,5 +80,4 @@ const preloadPackage = async () => {
     }
 };
 
-// Execute the preload function
 preloadPackage();
