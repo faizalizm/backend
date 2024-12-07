@@ -32,6 +32,7 @@ const getWallet = asyncHandler(async (req, res) => {
             {systemType: 'FPX'}
         ],
         walletId: wallet._id,
+        status: 'Success',
         createdAt: {$gte: ninetyDaysAgo}
     }).select('-_id -walletId -__v').sort({createdAt: -1});
 

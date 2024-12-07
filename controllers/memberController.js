@@ -215,17 +215,12 @@ const loginMember = asyncHandler(async (req, res) => {
     }
 
     if (member && (await bcrypt.compare(password, member.password))) {
-        const totalLiveVIP = await getTotalLiveVIP();
-        const recentVip = await getRecentVIP();
-
         res.json({
             fullName: member.fullName,
             email: member.mail,
             referralCode: member.referralCode,
             type: member.type,
-            token: generateToken(member._id),
-            totalLiveVIP,
-            recentVip
+            token: generateToken(member._id)
         });
     } else {
         res.status(400);
@@ -449,6 +444,16 @@ const getReferral = asyncHandler(async (req, res) => {
     }
 });
 
+const getVIPStatistic = asyncHandler(async (req, res) => {
+    const totalLiveVIP = await getTotalLiveVIP();
+    const recentVip = await getRecentVIP();
+
+    res.status(200).json({
+        totalLiveVIP,
+        recentVip
+    });
+});
+
 const getTotalLiveVIP = async () => {
     try {
         return await Member.countDocuments({type: 'VIP'});
@@ -553,4 +558,4 @@ const sendInvitationEmail = async (recipientEmail, referralCode, playStoreInvita
 };
 
 
-module.exports = {registerMember, loginMember, getMember, updateMember, inviteMember, getReferral};
+module.exports = {registerMember, loginMember, getMember, updateMember, inviteMember, getReferral, getVIPStatistic};
