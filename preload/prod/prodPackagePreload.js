@@ -1,10 +1,14 @@
 const path = require('path');
+const fs = require('fs');
 const dotenv = require('dotenv').config({path: path.join(__dirname, '..', '..', '.env')});
 const colors = require('colors');
+
 const connectDB = require('../../services/mongodb');
 const Package = require('../../models/packageModel');
+
 // Connect to the database
 connectDB();
+
 const encodeImageToBase64 = (filePath) => {
     try {
         const absolutePath = path.resolve(__dirname, filePath);
@@ -17,6 +21,7 @@ const encodeImageToBase64 = (filePath) => {
         return null; // Return null if there's an error
     }
 };
+
 const preloadPackage = async () => {
     console.log('🚀 Starting package preload process...'.blue);
     try {
@@ -31,8 +36,8 @@ const preloadPackage = async () => {
             },
             {
                 type: 'VIP',
-                name: 'HUB GIFT PACK (MEN)',
                 picture: encodeImageToBase64('../vip1.jpg'),
+                name: 'HUB GIFT PACK (MEN)',
                 description: [
                     "1 Box of Hub Fragrance (5 Bottles) worth RM100.00",
                     "1 bottle 35ML worth RM79.00",
@@ -49,8 +54,8 @@ const preloadPackage = async () => {
             },
             {
                 type: 'VIP',
-                name: 'HUB GIFT PACK (WOMEN)',
                 picture: encodeImageToBase64('../vip2.jpg'),
+                name: 'HUB GIFT PACK (WOMEN)',
                 description: [
                     "1 Box of Hub Fragrance (5 Bottles) worth RM100.00",
                     "1 bottle 35ML worth RM79.00",
@@ -67,8 +72,8 @@ const preloadPackage = async () => {
             },
             {
                 type: 'VIP',
-                name: 'HUB GIFT PACK (MEN) 2',
                 picture: encodeImageToBase64('../vip3.jpg'),
+                name: 'HUB GIFT PACK (MEN) 2',
                 description: [
                     "2 Bottles of perfume worth RM79.00 each",
                     "1 bottle 10ML worth RM19.90",
@@ -85,8 +90,8 @@ const preloadPackage = async () => {
             },
             {
                 type: 'VIP',
-                name: 'HUB GIFT PACK (WOMEN) 2',
                 picture: encodeImageToBase64('../vip4.jpg'),
+                name: 'HUB GIFT PACK (WOMEN) 2',
                 description: [
                     "2 Bottles of perfume worth RM79.00 each",
                     "1 bottle 10ML worth RM19.90",
@@ -118,4 +123,5 @@ const preloadPackage = async () => {
         process.exit(); // Exit the script when done
     }
 };
+
 preloadPackage();
