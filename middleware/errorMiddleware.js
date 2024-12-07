@@ -1,13 +1,20 @@
+const {logger} = require('../services/logger');
+
 const errorHandler = (err, req, res, next) => {
-    const statusCode = res.statusCode ? res.statusCode : 500;
+    const statusCode = res.statusCode || 500;
 
-    res.status(statusCode);
+    logger.error(err.stack);
 
-    res.json({
+    const errorResponse = {
         message: `[ID: ${req.requestId}] ${err.message}`,
-        stack: err.stack
-//        stack: process.env.NODE_ENV !== 'production' ? null : err.stack
-    });
+    };
+
+    // Include stack only in development
+    if (process.env.NODE_ENV === 'DEV') {
+        errorResponse.stack = err.stack;
+    }
+
+    res.status(statusCode).json(errorResponse);
 };
 
 module.exports = errorHandler;
