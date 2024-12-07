@@ -45,18 +45,21 @@ const topupWallet = asyncHandler(async (req, res) => {
 
     if (!paymentChannel || !amount) {
         res.status(400);
-        throw new Error('Payment Channel and amount are required');
+        throw new Error('Payment channel and amount are required');
     }
 
     let paymentChannelToyyib;
     if (paymentChannel === 'FPX') {
         paymentChannelToyyib = '0';
+    } else {
+        res.status(404);
+        throw new Error('Payment channel not supported');
     }
 
     const package = await Package.findOne({type: 'Topup'}).select('categoryCode emailContent packageCharge -_id');
     if (!package) {
-        res.status(404);
-        throw new Error('Package Not Found');
+        res.status(500);
+        throw new Error('Package not found');
     }
 
     // Find the wallet linked to the member
