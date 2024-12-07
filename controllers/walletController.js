@@ -442,4 +442,86 @@ const sendWithdrawalNotification = async (member, transaction) => {
     }
 };
 
+
+//const processSpendingReward = async (spenderWallet, member, amount) => {
+//    console.log(`Processing Spending Rewards`);
+//    
+//    const spenderPercentages = 10;
+//    const spenderReward = (amount * percentage) / 100;
+//
+//    spenderWallet.balance = Number(spenderWallet.balance) + spenderReward;
+//    await spenderWallet.save();
+//
+//    await Transaction.create({
+//        walletId: spenderWallet._id,
+//        systemType: 'HubPoints',
+//        type: 'Credit',
+//        description: 'Spending Rewards',
+//        status: 'Success',
+//        memberId: member._id,
+//        amount: 
+//    });
+//
+//
+//    // Percentages for each level
+//    const percentages = [4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4];
+//    console.log(percentages.length);
+//
+//    let currentMember = member.referredBy;
+//    let level = 0;
+//
+//    const visited = new Set();
+//
+//    try {
+//        while (currentMember && level < 20) {
+//            if (visited.has(currentMember)) {
+//                console.log('Cycle detected in referral chain. Breaking loop.');
+//                break;
+//            }
+//            visited.add(currentMember);
+//
+//            // Find the upline member
+//            const uplineMember = await Member.findOne({referralCode: currentMember}).select('_id fullName referralCode referredBy type');
+//            if (!uplineMember)
+//                break;
+//
+//            // Calculate the commission for this level
+//            const percentage = percentages[level] ?? 0; // If percentage not specied, then 0 commission
+//            const commission = (amount * percentage) / 100;
+//
+//
+//            if (uplineMember.type !== 'VIP' && level < 3) {
+//                console.log(`Upline Member ${uplineMember.fullName} (Level ${level + 1}) missed on receiving ${percentage}% (RM ${(commission / 100).toFixed(2)})`);
+//            } else {
+//                const uplineWallet = await Wallet.findOne({memberId: uplineMember._id}).select('balance');
+//                if (!uplineWallet) {
+//                    console.log(`Wallet not found for upline member ${uplineMember.fullName}`);
+//                } else {
+//                    uplineWallet.balance = Number(uplineWallet.balance) + commission;
+//                    await uplineWallet.save();
+//
+//                    await Transaction.create({
+//                        walletId: uplineWallet._id,
+//                        systemType: 'HubWallet',
+//                        type: 'Credit',
+//                        description: 'VIP Registration Commission',
+//                        status: 'Success',
+//                        memberId: member._id,
+//                        amount: amount
+//                    });
+//
+//                    console.log(`Upline Member ${uplineMember.fullName} (Level ${level + 1}) received ${percentage}% (RM ${(commission / 100).toFixed(2)})`);
+//                }
+//            }
+//
+//            // Move to the next upline
+//            currentMember = uplineMember.referredBy;
+//            level++;
+//        }
+//    } catch (error) {
+//        console.error(`Error processing VIP commission at Level ${level + 1}: ${error.message}`);
+//        console.error(error.stack);
+//    }
+//};
+
 module.exports = {getWallet, topupWallet, withdrawWallet, transferVerification, transferWallet, qrPayment, genQRCode};

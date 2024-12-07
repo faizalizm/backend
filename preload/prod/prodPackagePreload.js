@@ -61,6 +61,7 @@ const preloadPackage = async () => {
                 packageCharge: 0
             }
         ];
+
         // Loop through packages and add them to the database if they don't already exist
         for (const packageData of packages) {
             const existingPackage = await Package.findOne({name: packageData.name});
@@ -78,4 +79,4 @@ const preloadPackage = async () => {
     }
 };
 
-module.exports = preloadPackage;
+preloadPackage();

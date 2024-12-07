@@ -41,6 +41,11 @@ const transactionSchema = new mongoose.Schema({
         required: [true, 'Please add status'],
         enum: ['In Progress', 'Success', 'Failed', 'Expired']
     },
+    memberId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Member', // Reference to the referred member
+        default: null // For VIP Registration Commision/Spending Rewards (Who is the initiator)
+    },
     counterpartyWalletId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Wallet', // Reference to the recipient member

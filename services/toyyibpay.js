@@ -192,7 +192,7 @@ const processVIPPayment = async (memberId, amount) => {
     console.log(`Member ${member.fullName} upgraded to VIP`);
 
     // Process VIP Referral Commission
-    await processVIPCommision(memberId, amount);
+    await processVIPCommision(member, amount);
 };
 
 

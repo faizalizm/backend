@@ -11,7 +11,6 @@ connectDB();
 const preloadPackage = async () => {
     console.log('🚀 Starting package preload process...'.blue);
     try {
-        // Define package data
         const packages = [
             {
                 type: 'Topup',
