@@ -111,18 +111,24 @@ const registerMember = asyncHandler(async (req, res) => {
                 // Find the level 1 entry (without referrerId for direct upline)
                 let levelEntry = referrer.referrals.find(entry => entry.level === "1");
 
-                // If no level entry for level 1, create one
+                const newReferral = {
+                    referrerId: referrer._id,
+                    memberId: member._id,
+                    referredAt: Date.now()
+                };
+
                 if (!levelEntry) {
+                    // Create the level entry if it doesn't exist
                     levelEntry = {
                         level: "1",
-                        referrals: [{
-                                referrerId: referrer._id,
-                                memberId: member._id, // Only the memberId is required for Level 1
-                                referredAt: Date.now()
-                            }]
+                        referrals: [newReferral]
                     };
                     referrer.referrals.push(levelEntry);
+                } else {
+                    // Append new member to the existing referrals list
+                    levelEntry.referrals.push(newReferral);
                 }
+
 
                 // Debugging: log what we added to Level 1 referrals
                 logger.info(`Added ${member.fullName} to ${referrer.fullName}'s Level 1 referrals`);
@@ -419,7 +425,7 @@ const getReferral = asyncHandler(async (req, res) => {
                 if (!referrerNode) {
                     referrerNode = {
                         referrerFullName: referral.referrerId?.fullName || 'Unknown Referrer',
-                        referrals: [],
+                        referrals: []
                     };
                     referralData.referrals.push(referrerNode);
                 }
@@ -430,7 +436,7 @@ const getReferral = asyncHandler(async (req, res) => {
                     profilePicture: referral.memberId?.profilePicture || null,
                     type: referral.memberId?.type || null,
                     vipAt: referral.memberId?.vipAt || null,
-                    referredAt: referral.memberId?.createdAt || null,
+                    referredAt: referral.memberId?.createdAt || null
                 });
             });
         });
