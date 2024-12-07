@@ -15,7 +15,7 @@ const Wallet = require('../models/walletModel');
 const registerMember = asyncHandler(async (req, res) => {
     const {fullName, email, password, phone, referredBy} = req.body;
 
-    if (!fullName || !email || !password || !phone) {
+    if (!fullName || !email || !password || !phone || !referredBy) {
         res.status(400);
         throw new Error('Please add all fields');
     }
