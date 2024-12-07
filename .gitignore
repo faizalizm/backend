@@ -70,5 +70,4 @@ node_modules/
 
 # Dependency directories
 firebase-archive/
-.vercel
 /nbproject/private/

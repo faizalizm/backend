@@ -25,7 +25,7 @@ const packageSchema = new mongoose.Schema({
         required: [true, 'Please add name']
     },
     description: {
-        type: String,
+        type: [String], // Array for multiline desc,
         required: [true, 'Please add description']
     },
     price: {

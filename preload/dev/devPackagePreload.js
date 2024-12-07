@@ -1,4 +1,5 @@
 const path = require('path');
+const fs = require('fs');
 const dotenv = require('dotenv').config({path: path.join(__dirname, '..', '..', '.env')});
 const colors = require('colors');
 
@@ -8,6 +9,19 @@ const Package = require('../../models/packageModel');
 // Connect to the database
 connectDB();
 
+const encodeImageToBase64 = (filePath) => {
+    try {
+        const absolutePath = path.resolve(__dirname, filePath);
+        const image = fs.readFileSync(absolutePath);
+        const base64Image = image.toString('base64');
+        const ext = path.extname(filePath).substring(1); // Get file extension without the dot
+        return `data:image/${ext};base64,${base64Image}`;
+    } catch (error) {
+        console.error(`❌ Error encoding image at ${filePath}:`, error.message);
+        return null; // Return null if there's an error
+    }
+};
+
 const preloadPackage = async () => {
     console.log('🚀 Starting package preload process...'.blue);
     try {
@@ -15,15 +29,23 @@ const preloadPackage = async () => {
             {
                 type: 'Topup',
                 name: 'HubWallet Cash Topup',
-                description: 'Add cash to your wallet to make payments and transfers',
+                description: ['Add cash to your wallet to make payments and transfers'],
                 categoryCode: 'xvzexbil',
                 emailContent: 'You have successfully top-up your HubWallet Cash',
                 packageCharge: 0
             },
             {
                 type: 'VIP',
+                picture: encodeImageToBase64('../vip1.jpg'),
                 name: 'HUB GIFT PACK (MEN)',
-                description: 'Become a RewardHub VIP and get merchandise for men',
+                description: [
+                    "1 Box of Hub Fragrance (5 Bottles) worth RM100.00",
+                    "1 bottle 35ML worth RM79.00",
+                    "1 T-Shirt",
+                    "1 Simcard S4S",
+                    "1 Prepaid card Mastercard from Mi-Pay",
+                    "1 Lucky Draw Ticket"
+                ],
                 price: '25000',
                 code: 'VIP1',
                 categoryCode: '5430n0yy',
@@ -32,8 +54,16 @@ const preloadPackage = async () => {
             },
             {
                 type: 'VIP',
+                picture: encodeImageToBase64('../vip2.jpg'),
                 name: 'HUB GIFT PACK (WOMEN)',
-                description: 'Become a RewardHub VIP and get merchandise for women',
+                description: [
+                    "1 Box of Hub Fragrance (5 Bottles) worth RM100.00",
+                    "1 bottle 35ML worth RM79.00",
+                    "1 T-Shirt",
+                    "1 Simcard S4S",
+                    "1 Prepaid card Mastercard from Mi-Pay",
+                    "1 Lucky Draw Ticket"
+                ],
                 price: '25000',
                 code: 'VIP2',
                 categoryCode: 'xs88o64q',
@@ -42,8 +72,16 @@ const preloadPackage = async () => {
             },
             {
                 type: 'VIP',
+                picture: encodeImageToBase64('../vip3.jpg'),
                 name: 'HUB GIFT PACK (MEN) 2',
-                description: 'Become a RewardHub VIP and get merchandise for men',
+                description: [
+                    "2 Bottles of perfume worth RM79.00 each",
+                    "1 bottle 10ML worth RM19.90",
+                    "1 T-Shirt",
+                    "1 Simcard S4S",
+                    "1 Prepaid card Mastercard from Mi-Pay",
+                    "1 Lucky Draw Ticket"
+                ],
                 price: '25000',
                 code: 'VIP3',
                 categoryCode: '2a4jkpbj',
@@ -52,8 +90,16 @@ const preloadPackage = async () => {
             },
             {
                 type: 'VIP',
+                picture: encodeImageToBase64('../vip4.jpg'),
                 name: 'HUB GIFT PACK (WOMEN) 2',
-                description: 'Become a RewardHub VIP and get merchandise for women',
+                description: [
+                    "2 Bottles of perfume worth RM79.00 each",
+                    "1 bottle 10ML worth RM19.90",
+                    "1 T-Shirt",
+                    "1 Simcard S4S",
+                    "1 Prepaid card Mastercard from Mi-Pay",
+                    "1 Lucky Draw Ticket"
+                ],
                 price: '25000',
                 code: 'VIP4',
                 categoryCode: 'l5o659nv',
