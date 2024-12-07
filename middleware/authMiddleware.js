@@ -1,9 +1,13 @@
 const jwt = require('jsonwebtoken');
 const asyncHandler = require('express-async-handler');
 
+const {logger} = require('../services/logger');
+
 const Member = require('../models/memberModel');
 
 const protect = asyncHandler(async (req, res, next) => {
+    logger.info('Authenticating member');
+
     let token;
 
     if (
@@ -30,7 +34,7 @@ const protect = asyncHandler(async (req, res, next) => {
 
             next();
         } catch (error) {
-            console.log(error);
+            logger.info(error);
             res.status(401);
             throw new Error('Authorization failed');
         }

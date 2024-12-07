@@ -1,7 +1,10 @@
 const asyncHandler = require('express-async-handler');
 const moment = require('moment-timezone');
+
+const {logger} = require('../services/logger');
 const axiosInstance = require('../services/axios');
 const {getCategoryToyyib, createBillToyyib, getBillTransactionsToyyib} = require('../services/toyyibpay');
+
 const Package = require('../models/packageModel');
 const Wallet = require('../models/walletModel');
 const Transaction = require('../models/transactionModel');
@@ -23,11 +26,11 @@ const getPackage = asyncHandler(async (req, res) => {
 });
 
 const processVIPCommision = async (member, amount) => {
-    console.log(`Processing VIP Referral Commision`);
+    logger.info(`Processing VIP Referral Commision`);
 
     // Percentages for each level
     const percentages = [20, 2, 2, 2, 1.2, 1.2, 0.8, 0.8, 0.4, 0.4, 0.2, 0.2, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1];
-    console.log(percentages.length);
+    logger.info(percentages.length);
 
     let currentMember = member.referredBy;
     let level = 0;
@@ -37,7 +40,7 @@ const processVIPCommision = async (member, amount) => {
     try {
         while (currentMember && level < 20) {
             if (visited.has(currentMember)) {
-                console.log('Cycle detected in referral chain. Breaking loop.');
+                logger.info('Cycle detected in referral chain. Breaking loop.');
                 break;
             }
             visited.add(currentMember);
@@ -53,11 +56,11 @@ const processVIPCommision = async (member, amount) => {
 
 
             if (uplineMember.type !== 'VIP' && level < 3) {
-                console.log(`Upline Member ${uplineMember.fullName} (Level ${level + 1}) missed on receiving ${percentage}% (RM ${(commission / 100).toFixed(2)})`);
+                logger.info(`Upline Member ${uplineMember.fullName} (Level ${level + 1}) missed on receiving ${percentage}% (RM ${(commission / 100).toFixed(2)})`);
             } else {
                 const uplineWallet = await Wallet.findOne({memberId: uplineMember._id}).select('balance');
                 if (!uplineWallet) {
-                    console.log(`Wallet not found for upline member ${uplineMember.fullName}`);
+                    logger.info(`Wallet not found for upline member ${uplineMember.fullName}`);
                 } else {
                     uplineWallet.balance = Number(uplineWallet.balance) + commission;
                     await uplineWallet.save();
@@ -72,7 +75,7 @@ const processVIPCommision = async (member, amount) => {
                         amount: amount
                     });
 
-                    console.log(`Upline Member ${uplineMember.fullName} (Level ${level + 1}) received ${percentage}% (RM ${(commission / 100).toFixed(2)})`);
+                    logger.info(`Upline Member ${uplineMember.fullName} (Level ${level + 1}) received ${percentage}% (RM ${(commission / 100).toFixed(2)})`);
                 }
             }
 
@@ -81,8 +84,8 @@ const processVIPCommision = async (member, amount) => {
             level++;
         }
     } catch (error) {
-        console.error(`Error processing VIP commission at Level ${level + 1}: ${error.message}`);
-        console.error(error.stack);
+        logger.error(`Error processing VIP commission at Level ${level + 1}: ${error.message}`);
+        logger.error(error.stack);
     }
 };
 
@@ -118,7 +121,7 @@ const purchasePackage = asyncHandler(async (req, res) => {
 
     if (paymentChannel === 'HubWallet') {
 
-        console.log(`Wallet Balance: ${wallet.balance}, Package Price: ${package.price}`);
+        logger.info(`Wallet Balance: ${wallet.balance}, Package Price: ${package.price}`);
 
         // Check if wallet balance is sufficient for the package
         if (wallet.balance < package.price) {
@@ -191,7 +194,7 @@ const purchasePackage = asyncHandler(async (req, res) => {
 
         } catch (error) {
             res.status(500);
-            console.log(error.stack);
+            logger.info(error.stack);
             throw new Error('VIP payment failed, please try again later');
         }
 

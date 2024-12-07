@@ -1,11 +1,13 @@
 const axios = require('axios');
 
+const {logger} = require('./logger');
+
 // Create an Axios instance
 const axiosInstance = axios.create();
 
 // Request Interceptor
 axiosInstance.interceptors.request.use((config) => {
-    console.log('Sending Axios Request', {
+    logger.info('Sending Axios Request', {
         url: config.url,
         method: config.method,
         headers: config.headers,
@@ -14,20 +16,20 @@ axiosInstance.interceptors.request.use((config) => {
     });
     return config;
 }, (error) => {
-    console.error('Request Error:', error);
+    logger.error('Request Error:', error);
     return Promise.reject(error);
 });
 
 // Response Interceptor
 axiosInstance.interceptors.response.use((response) => {
-    console.log('Receiving Axios Response:', {
+    logger.info('Receiving Axios Response:', {
         url: response.config.url,
         status: response.status,
         data: response.data
     });
     return response;
 }, (error) => {
-    console.error('Response Error:', {
+    logger.error('Response Error:', {
         message: error.message,
         response: error.response ? {
             url: error.response.config.url,

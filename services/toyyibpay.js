@@ -1,9 +1,12 @@
 const axiosInstance = require('./axios');
+
+const {logger} = require('./logger');
+
 const Wallet = require('../models/walletModel');
 const Transaction = require('../models/transactionModel');
 const Member = require('../models/memberModel');
-const {processVIPCommision} = require('../controllers/packageController');
 
+const {processVIPCommision} = require('../controllers/packageController');
 
 const {TOYYIB_URL, TOYYIB_SECRET, TOYYIB_CALLBACK_URL, IP} = process.env;
 
@@ -57,7 +60,7 @@ const createBillToyyib = async (req, res, amount, package, getCategory, billExpi
 //                    billEmail: req.member.email,
 //                    billPhone: req.member.phone,
             billContentEmail: package.emailContent, // Max 1000 chars
-            billPaymentChannel: package.paymentChannel, // 0 = FPX || 1 = CC || 2 = BOTH
+            billPaymentChannel: 1, // 0 = FPX || 1 = CC || 2 = BOTH
             billChargeToCustomer: 0, // 0 = Charge bill to cust || Off if charge owner
             billExpiryDate: billExpiryDate, // Current Time + 5 Minute, e.g. 17-12-2020 17:00:00
             enableFPXB2B: 1, // 1 = FPX (Corporate Banking) payment channel
@@ -97,11 +100,11 @@ const getBillTransactionsToyyib = async (memberId, walletId, amount, billCode, t
             const currentTime = Date.now();
             const elapsedTime = currentTime - startTime;
             attemptNumber++;
-            console.log(`Checking bill status: Attempt ${attemptNumber}/${maxAttempts}`);
+            logger.info(`Checking bill status: Attempt ${attemptNumber}/${maxAttempts}`);
 
             // Stop polling if max duration is exceeded
             if (elapsedTime >= maxDuration) {
-                console.log('Max duration reached. Marking transaction as Expired.');
+                logger.info('Max duration reached. Marking transaction as Expired.');
 
                 const transaction = await Transaction.findOne({billCode});
                 if (transaction && transaction.status === 'In Progress') {
@@ -122,10 +125,10 @@ const getBillTransactionsToyyib = async (memberId, walletId, amount, billCode, t
             );
 
             const billStatus = response.data;
-            console.log(`Bill Status Response:`, billStatus);
+            logger.info(`Bill Status Response:`, billStatus);
 
             if (billStatus[0]?.billpaymentStatus === '1') {
-                console.log('Bill has been paid. Updating transaction.');
+                logger.info('Bill has been paid. Updating transaction.');
 
                 const transaction = await Transaction.findOne({billCode});
                 if (transaction && transaction.status !== 'Success') { // Check if transaction already updated
@@ -137,13 +140,13 @@ const getBillTransactionsToyyib = async (memberId, walletId, amount, billCode, t
                     } else if (type === "VIP Payment") {
                         processVIPPayment(memberId, amount);
                     } else {
-                        console.log(`Type is not defined, success payment not processed`);
+                        logger.info(`Type is not defined, success payment not processed`);
                     }
                 }
 
                 return; // Stop further polling
             } else if (billStatus[0]?.billpaymentStatus === '3') {
-                console.log('Bill status is Failed');
+                logger.info('Bill status is Failed');
 
                 const transaction = await Transaction.findOne({billCode});
                 if (transaction && transaction.status === 'In Progress') {
@@ -151,12 +154,12 @@ const getBillTransactionsToyyib = async (memberId, walletId, amount, billCode, t
                     await transaction.save();
                 }
             } else {
-                console.log('Bill status is In Progress. Retrying...');
+                logger.info('Bill status is In Progress. Retrying...');
                 setTimeout(checkStatus, interval); // Retry after interval
             }
         } catch (error) {
-            console.error('Error while checking bill status:', error.message);
-            console.error(error.stack);
+            logger.error('Error while checking bill status:', error.message);
+            logger.error(error.stack);
             setTimeout(checkStatus, interval); // Retry after interval
         }
     };
@@ -166,7 +169,7 @@ const getBillTransactionsToyyib = async (memberId, walletId, amount, billCode, t
 
 
 const processTopup = async (memberId, walletId, amount) => {
-    console.log('Top Up transaction, updating wallet');
+    logger.info('Top Up transaction, updating wallet');
 
     const wallet = await Wallet.findOne({_id: walletId, memberId}).select('-paymentCode -createdAt -updatedAt -__v');
     if (!wallet)
@@ -175,11 +178,11 @@ const processTopup = async (memberId, walletId, amount) => {
     wallet.balance = (Number(wallet.balance)) + Number(amount);
     await wallet.save();
 
-    console.log(`Previous Wallet Balance: ${wallet.balance - amount}, Updated Wallet Balance: ${wallet.balance}`);
+    logger.info(`Previous Wallet Balance: ${wallet.balance - amount}, Updated Wallet Balance: ${wallet.balance}`);
 };
 
 const processVIPPayment = async (memberId, amount) => {
-    console.log('VIP Payment, updating member status');
+    logger.info('VIP Payment, updating member status');
 
     const member = await Member.findOne({_id: memberId}).select('-paymentCode -createdAt -updatedAt -__v');
     if (!member)
@@ -189,7 +192,7 @@ const processVIPPayment = async (memberId, amount) => {
     member.vipAt = new Date();
     await member.save();
 
-    console.log(`Member ${member.fullName} upgraded to VIP`);
+    logger.info(`Member ${member.fullName} upgraded to VIP`);
 
     // Process VIP Referral Commission
     await processVIPCommision(member, amount);

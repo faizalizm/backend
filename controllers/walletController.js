@@ -3,7 +3,10 @@ const moment = require('moment-timezone');
 const fs = require('fs');
 const path = require('path');
 const nodemailer = require('nodemailer');
+
+const {logger} = require('../services/logger');
 const {getCategoryToyyib, createBillToyyib, getBillTransactionsToyyib} = require('../services/toyyibpay');
+
 const Member = require('../models/memberModel');
 const Wallet = require('../models/walletModel');
 const Package = require('../models/packageModel');
@@ -20,7 +23,7 @@ const getWallet = asyncHandler(async (req, res) => {
     // Calculate the date 90 days ago
     const ninetyDaysAgo = new Date();
     ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
-    console.log('Ninety Days Ago: ' + ninetyDaysAgo);
+    logger.info('Ninety Days Ago: ' + ninetyDaysAgo);
 
     // Find all transactions linked to the wallet
     const transactions = await Transaction.find({
@@ -140,7 +143,7 @@ const withdrawWallet = asyncHandler(async (req, res) => {
         throw new Error('Wallet Not Found');
     }
 
-    console.log(`Wallet Balance: ${wallet.balance}, Withdrawal Amount: ${amount}`);
+    logger.info(`Wallet Balance: ${wallet.balance}, Withdrawal Amount: ${amount}`);
     // Check if wallet balance is sufficient for the withdrawal
     if (wallet.balance < amount) {
         res.status(402); // HTTP 402: Payment Required
@@ -175,7 +178,7 @@ const withdrawWallet = asyncHandler(async (req, res) => {
             currency: wallet.currency
         });
     } catch (error) {
-        console.error('Error processing withdrawal:', error);
+        logger.error('Error processing withdrawal:', error);
 
         res.status(500);
         throw new Error('Withdrawal failed, please try again later');
@@ -285,8 +288,8 @@ const transferWallet = asyncHandler(async (req, res) => {
 
     if (senderTransaction && recipientTransaction) {
 
-        console.log(`Sender Balance: ${senderWallet.balance}, Transfer Amount: ${amount}`);
-        console.log(`Recipient Balance: ${recipientWallet.balance}, Transer Amount: ${amount}`);
+        logger.info(`Sender Balance: ${senderWallet.balance}, Transfer Amount: ${amount}`);
+        logger.info(`Recipient Balance: ${recipientWallet.balance}, Transer Amount: ${amount}`);
 
         senderWallet.balance -= Number(amount);
         await senderWallet.save();
@@ -294,8 +297,8 @@ const transferWallet = asyncHandler(async (req, res) => {
         recipientWallet.balance += Number(amount);
         await recipientWallet.save();
 
-        console.log(`New Sender Balance: ${senderWallet.balance}`);
-        console.log(`New Recipient Balance: ${recipientWallet.balance}`);
+        logger.info(`New Sender Balance: ${senderWallet.balance}`);
+        logger.info(`New Recipient Balance: ${recipientWallet.balance}`);
 
         res.status(200).json({
             balance: senderWallet.balance,
@@ -363,8 +366,8 @@ const qrPayment = asyncHandler(async (req, res) => {
 
     if (senderTransaction && recipientTransaction) {
 
-        console.log(`Sender Balance: ${senderWallet.balance}, Transfer Amount: ${amount}`);
-        console.log(`Recipient Balance: ${recipientWallet.balance}, Transer Amount: ${amount}`);
+        logger.info(`Sender Balance: ${senderWallet.balance}, Transfer Amount: ${amount}`);
+        logger.info(`Recipient Balance: ${recipientWallet.balance}, Transer Amount: ${amount}`);
 
         senderWallet.balance -= Number(amount);
         await senderWallet.save();
@@ -372,8 +375,8 @@ const qrPayment = asyncHandler(async (req, res) => {
         recipientWallet.balance += Number(amount);
         await recipientWallet.save();
 
-        console.log(`New Sender Balance: ${senderWallet.balance}`);
-        console.log(`New Recipient Balance: ${recipientWallet.balance}`);
+        logger.info(`New Sender Balance: ${senderWallet.balance}`);
+        logger.info(`New Recipient Balance: ${recipientWallet.balance}`);
 
         res.status(200).json({
             balance: senderWallet.balance,
@@ -439,15 +442,15 @@ const sendWithdrawalNotification = async (member, transaction) => {
             }
         });
 
-        console.log('Admin notification sent successfully');
+        logger.info('Admin notification sent successfully');
     } catch (error) {
-        console.error('Failed to send admin notification:', error);
+        logger.error('Failed to send admin notification:', error);
     }
 };
 
 
 //const processSpendingReward = async (spenderWallet, member, amount) => {
-//    console.log(`Processing Spending Rewards`);
+//    logger.info(`Processing Spending Rewards`);
 //    
 //    const spenderPercentages = 10;
 //    const spenderReward = (amount * percentage) / 100;
@@ -468,7 +471,7 @@ const sendWithdrawalNotification = async (member, transaction) => {
 //
 //    // Percentages for each level
 //    const percentages = [4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4];
-//    console.log(percentages.length);
+//    logger.info(percentages.length);
 //
 //    let currentMember = member.referredBy;
 //    let level = 0;
@@ -478,7 +481,7 @@ const sendWithdrawalNotification = async (member, transaction) => {
 //    try {
 //        while (currentMember && level < 20) {
 //            if (visited.has(currentMember)) {
-//                console.log('Cycle detected in referral chain. Breaking loop.');
+//                logger.info('Cycle detected in referral chain. Breaking loop.');
 //                break;
 //            }
 //            visited.add(currentMember);
@@ -494,11 +497,11 @@ const sendWithdrawalNotification = async (member, transaction) => {
 //
 //
 //            if (uplineMember.type !== 'VIP' && level < 3) {
-//                console.log(`Upline Member ${uplineMember.fullName} (Level ${level + 1}) missed on receiving ${percentage}% (RM ${(commission / 100).toFixed(2)})`);
+//                logger.info(`Upline Member ${uplineMember.fullName} (Level ${level + 1}) missed on receiving ${percentage}% (RM ${(commission / 100).toFixed(2)})`);
 //            } else {
 //                const uplineWallet = await Wallet.findOne({memberId: uplineMember._id}).select('balance');
 //                if (!uplineWallet) {
-//                    console.log(`Wallet not found for upline member ${uplineMember.fullName}`);
+//                    logger.info(`Wallet not found for upline member ${uplineMember.fullName}`);
 //                } else {
 //                    uplineWallet.balance = Number(uplineWallet.balance) + commission;
 //                    await uplineWallet.save();
@@ -513,7 +516,7 @@ const sendWithdrawalNotification = async (member, transaction) => {
 //                        amount: amount
 //                    });
 //
-//                    console.log(`Upline Member ${uplineMember.fullName} (Level ${level + 1}) received ${percentage}% (RM ${(commission / 100).toFixed(2)})`);
+//                    logger.info(`Upline Member ${uplineMember.fullName} (Level ${level + 1}) received ${percentage}% (RM ${(commission / 100).toFixed(2)})`);
 //                }
 //            }
 //
@@ -522,8 +525,8 @@ const sendWithdrawalNotification = async (member, transaction) => {
 //            level++;
 //        }
 //    } catch (error) {
-//        console.error(`Error processing VIP commission at Level ${level + 1}: ${error.message}`);
-//        console.error(error.stack);
+//        logger.error(`Error processing VIP commission at Level ${level + 1}: ${error.message}`);
+//        logger.error(error.stack);
 //    }
 //};
 

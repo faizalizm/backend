@@ -6,6 +6,9 @@ const qrcode = require('qrcode');
 const fs = require('fs');
 const path = require('path');
 const nodemailer = require('nodemailer');
+
+const {logger} = require('../services/logger');
+
 const Member = require('../models/memberModel');
 const Wallet = require('../models/walletModel');
 
@@ -122,8 +125,7 @@ const registerMember = asyncHandler(async (req, res) => {
                 }
 
                 // Debugging: log what we added to Level 1 referrals
-                console.log(``);
-                console.log(`Added ${member.fullName} to ${referrer.fullName}'s Level 1 referrals`);
+                logger.info(`Added ${member.fullName} to ${referrer.fullName}'s Level 1 referrals`);
 
                 // Save the referrer with the new referral added
                 await referrer.save();
@@ -161,7 +163,7 @@ const registerMember = asyncHandler(async (req, res) => {
                     }
 
                     await currentReferrer.save();
-                    console.log(`Added ${referrer.fullName} to ${currentReferrer.fullName}'s Level ${currentLevel} referrals`);
+                    logger.info(`Added ${referrer.fullName} to ${currentReferrer.fullName}'s Level ${currentLevel} referrals`);
 
                     // Move up the referral chain, updating the referrer for the next level
 //                referrer = currentReferrer;
@@ -333,7 +335,7 @@ const updateMember = asyncHandler(async (req, res) => {
         updates.password = hashedPassword;
     }
 
-    console.log(req.body);
+    logger.info(req.body);
 
     const updatedMember = await Member.findByIdAndUpdate(req.member._id, updates, {
         new : true,
@@ -445,7 +447,7 @@ const getTotalLiveVIP = async () => {
     try {
         return await Member.countDocuments({type: 'VIP'});
     } catch (error) {
-        console.error('Error getting total Live VIP : ', error.message);
+        logger.error('Error getting total Live VIP : ', error.message);
         return null;
     }
 };
@@ -467,7 +469,7 @@ const getRecentVIP = async () => {
         );
 
     } catch (error) {
-        console.error('Error getting recent VIP : ', error.message);
+        logger.error('Error getting recent VIP : ', error.message);
         return null;
     }
 };
@@ -537,9 +539,9 @@ const sendInvitationEmail = async (recipientEmail, referralCode, playStoreInvita
             }
         });
 
-        console.log('Admin notification sent successfully');
+        logger.info('Admin notification sent successfully');
     } catch (error) {
-        console.error('Failed to send admin notification:', error);
+        logger.error('Failed to send admin notification:', error);
     }
 };
 
