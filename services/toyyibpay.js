@@ -1,12 +1,11 @@
 const axiosInstance = require('./axios');
-
 const {logger} = require('./logger');
 
 const Wallet = require('../models/walletModel');
 const Transaction = require('../models/transactionModel');
 const Member = require('../models/memberModel');
 
-const {processVIPCommision} = require('../controllers/packageController');
+const {processVIPCommision} = require('../controllers/commisionController');
 
 const {TOYYIB_URL, TOYYIB_SECRET, TOYYIB_CALLBACK_URL, IP} = process.env;
 
@@ -49,22 +48,22 @@ const createBillToyyib = async (req, res, amount, package, getCategory, billExpi
         const createBillParams = {
             userSecretKey: TOYYIB_SECRET,
             categoryCode: package.categoryCode,
-            billName: getCategory.data.CategoryName,
+            billName: package.name,
             billDescription: getCategory.data.categoryDescription,
             billPriceSetting: 1, // 1 = Fixed Value || 2 = Buyer Set Amount
             billPayorInfo: 0, // 0 = No Payor Info || 1 = Request Payor Info
-            billAmount: amount,
-            billReturnUrl: '',
+            billAmount: Number(amount),
+//            billReturnUrl: '',
             billCallbackUrl: callbackUrl,
 //                    billTo: req.member.fullName,
 //                    billEmail: req.member.email,
 //                    billPhone: req.member.phone,
             billContentEmail: package.emailContent, // Max 1000 chars
-            billPaymentChannel: 1, // 0 = FPX || 1 = CC || 2 = BOTH
+            billPaymentChannel: 2, // 0 = FPX || 1 = CC || 2 = BOTH
             billChargeToCustomer: 0, // 0 = Charge bill to cust || Off if charge owner
-            billExpiryDate: billExpiryDate, // Current Time + 5 Minute, e.g. 17-12-2020 17:00:00
-            enableFPXB2B: 1, // 1 = FPX (Corporate Banking) payment channel
-            chargeFPXB2B: package.packageCharge // 0 = Charge owner || 1 = Charge bill owner
+            billExpiryDate: billExpiryDate // Current Time + 5 Minute, e.g. 17-12-2020 17:00:00
+//            enableFPXB2B: 1, // 1 = FPX (Corporate Banking) payment channel
+//            chargeFPXB2B: package.packageCharge // 0 = Charge owner || 1 = Charge bill owner
         };
 
         console.table(createBillParams);

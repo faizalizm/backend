@@ -29,7 +29,6 @@ const trimBase64 = (result, maxLength = 50, visited = new Set()) => {
     return obj;
 };
 
-
 const customFormat = winston.format.printf(({ timestamp, level, message, requestId, ...meta }) => {
     const metaString = Object.keys(meta).length ? JSON.stringify(meta, null, 2) : '';
 

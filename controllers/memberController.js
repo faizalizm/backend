@@ -215,8 +215,8 @@ const loginMember = asyncHandler(async (req, res) => {
         res.json({
             fullName: member.fullName,
             email: member.mail,
-            phone: member.phone,
             referralCode: member.referralCode,
+            type: member.type,
             token: generateToken(member._id),
             totalLiveVIP,
             recentVip
@@ -454,11 +454,12 @@ const getTotalLiveVIP = async () => {
 
 const getRecentVIP = async () => {
     try {
-        const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000); // 24 hours ago
+        const period = 48; // 48 hours ago
+        const recentPeriod = new Date(Date.now() - period * 60 * 60 * 1000);
         return await Member.find(
                 {
                     type: 'VIP', // Match members with type VIP
-                    vipAt: {$gte: twentyFourHoursAgo} // Filter by vipAt >= 24 hours ago
+                    vipAt: {$gte: recentPeriod} // Filter by vipAt >= 48 hours ago
                 },
                 {
                     profilePicture: 1,

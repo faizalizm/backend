@@ -42,7 +42,7 @@ const packageSchema = new mongoose.Schema({
         unique: true // ToyyibPay categoryCode, only backend internal
     },
     packageCharge: {
-        type: String,
+        type: Number,
         required: [true, 'Please add packageCharge'],
         enum: ['0', '1', '2'] // 0 = Charge owner || 1 = Charge bill owner
     },
