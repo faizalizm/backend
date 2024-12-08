@@ -219,7 +219,7 @@ const transferVerification = asyncHandler(async(req, res) => {
 const transferWallet = asyncHandler(async (req, res) => {
     const {email, phone, amount} = req.body;
 
-    if (!email || !phone) {
+    if (!email && !phone) {
         res.status(400);
         throw new Error('Email or phone is required for transfer');
     }
