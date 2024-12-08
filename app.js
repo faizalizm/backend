@@ -6,7 +6,7 @@ const colors = require('colors');
 //const {v4: uuidv4} = require('uuid');
 
 const errorHandler = require('./middleware/errorMiddleware');
-const connectDB = require('./services/mongodb');
+const {connectDB} = require('./services/mongodb');
 const {logger, trimBase64} = require('./services/logger');
 
 const swaggerUI = require('swagger-ui-express');

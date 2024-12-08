@@ -3,7 +3,7 @@ const fs = require('fs');
 const dotenv = require('dotenv').config({path: path.join(__dirname, '..', '..', '.env')});
 const colors = require('colors');
 
-const connectDB = require('../../services/mongodb');
+const {connectDB} = require('../../services/mongodb');
 const Package = require('../../models/packageModel');
 
 // Connect to the database
@@ -107,7 +107,7 @@ const preloadPackage = async () => {
                 packageCharge: 0
             }
         ];
-
+        
         // Loop through packages and add them to the database if they don't already exist
         for (const packageData of packages) {
             const existingPackage = await Package.findOne({name: packageData.name});

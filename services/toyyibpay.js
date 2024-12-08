@@ -130,7 +130,7 @@ const getBillTransactionsToyyib = async (memberId, walletId, amount, billCode, t
                 logger.info('Bill has been paid. Updating transaction.');
 
                 const transaction = await Transaction.findOne({billCode});
-                if (transaction && transaction.status !== 'Success') { // Check if transaction already updated
+                if (transaction && transaction.status === 'In Progress') { // Check if transaction already updated
                     transaction.status = 'Success';
                     await transaction.save();
 
@@ -191,7 +191,7 @@ const processVIPPayment = async (memberId, amount) => {
     member.vipAt = new Date();
     await member.save();
 
-    logger.info(`Member ${member.fullName} upgraded to VIP`);
+    logger.info(`⭐ Member ${member.fullName} upgraded to VIP`);
 
     // Process VIP Referral Commission
     await processVIPCommision(member, amount);
