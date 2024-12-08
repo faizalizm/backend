@@ -86,7 +86,7 @@ const purchasePackage = asyncHandler(async (req, res) => {
         });
 
         // Process VIP Referral Commission
-        processVIPCommision(req.member._id, package.price);
+        processVIPCommision(req.member, package.price);
 
         res.status(200).json({
             message: 'Package purchased successfully. You have upgraded to VIP!',
