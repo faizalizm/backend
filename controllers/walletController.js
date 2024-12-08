@@ -60,7 +60,7 @@ const topupWallet = asyncHandler(async (req, res) => {
         throw new Error('Payment channel not supported');
     }
 
-    const package = await Package.findOne({type: 'Topup'}).select('categoryCode emailContent packageCharge -_id');
+    const package = await Package.findOne({type: 'Topup'}).select('name categoryCode emailContent packageCharge -_id');
     if (!package) {
         res.status(500);
         throw new Error('Package not found');

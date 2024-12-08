@@ -62,7 +62,7 @@ const responseFormat = (tokens, req, res) => {
     const url = tokens.url(req, res);
     const timestamp = new Date().toISOString();
     const ip = req.ip;
-    let body = res.body;
+    let body = res.body || '';
     if (body.length > 1000) {
         body = body.slice(0, 1000) + '...'; // Add ellipsis to indicate trimming
     }

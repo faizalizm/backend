@@ -144,4 +144,8 @@ const purchasePackage = asyncHandler(async (req, res) => {
 
 });
 
-module.exports = {getPackage, purchasePackage};
+const purchaseCallbackPackage = asyncHandler(async (req, res) => {
+    res.status(200).json({message: 'OK'});
+});
+
+module.exports = {getPackage, purchasePackage, purchaseCallbackPackage};
