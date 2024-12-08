@@ -98,12 +98,12 @@ const processPayments = async () => {
                         await transaction.save();
                         logger.info(`✅ Transaction updated to Success`);
 
-                        if (transaction.type === "Top Up") {
+                        if (transaction.description === "Top Up") {
                             await processTopup(wallet.memberId, wallet._id, transaction.amount);
-                        } else if (transaction.type === "VIP Payment") {
+                        } else if (transaction.description === "VIP Payment") {
                             await processVIPPayment(wallet.memberId, transaction.amount);
                         } else {
-                            logger.error(`⚠️ Unknown payment type for ${transaction.billCode}.`);
+                            logger.error(`⚠️ Unknown payment desciption for ${transaction.billCode}.`);
                         }
                     } else {
                         logger.info(`❌ Transaction In Progress was updated beforehand, will skip to process`);
