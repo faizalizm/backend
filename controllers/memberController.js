@@ -464,8 +464,8 @@ const getReferralV2 = asyncHandler(async (req, res) => {
         }
 
         const populatedReferrals = await Promise.all(referralsForLevel.referrals.map(async (referral) => {
-            const populatedReferrer = await Member.findById(referral.referrerId).select('profilePicture fullName type vipAt createdAt -_id');
-            const populatedMember = await Member.findById(referral.memberId).select('profilePicture fullName type vipAt createdAt -_id');
+            const populatedReferrer = await Member.findById(referral.referrerId).select('fullName type vipAt createdAt -_id');
+            const populatedMember = await Member.findById(referral.memberId).select('fullName type vipAt createdAt -_id');
 
             return {
                 referrer: populatedReferrer,
@@ -474,7 +474,34 @@ const getReferralV2 = asyncHandler(async (req, res) => {
             };
         }));
 
-        return res.status(200).json({referrals: populatedReferrals});
+        // Group referrals by referrer full name and type
+        const groupedReferrals = populatedReferrals.reduce((acc, { referrer, member }) => {
+            const referrerKey = `${referrer.fullName}-${referrer.type}`;  // Unique key combining full name and type
+
+            // If the referrer already exists in the map, add the member to the list
+            if (acc[referrerKey]) {
+                acc[referrerKey].push(member);
+            } else {
+                // If not, create a new list for this referrer
+                acc[referrerKey] = [member];
+            }
+
+            return acc;
+        }, {});
+
+        // Convert the grouped referrals into the desired structure
+        const modifiedReferralList = Object.keys(groupedReferrals).map(referrerKey => {
+            const [fullName, type] = referrerKey.split('-');  // Split the referrerKey back to fullName and type
+            return {
+                referrer: {
+                    fullName,
+                    type // Add the actual type from the referrer object
+                            // You can add other referrer fields if necessary, like profile picture or VIP status
+                },
+                members: groupedReferrals[referrerKey]
+            };
+        });
+        return res.status(200).json({referrals: modifiedReferralList});
     } catch (error) {
         console.error(error);
         return res.status(500).json({message: "An error occurred while retrieving referrals"});
