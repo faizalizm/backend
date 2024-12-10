@@ -388,61 +388,6 @@ const inviteMember = asyncHandler(async (req, res) => {
 });
 
 const getReferral = asyncHandler(async (req, res) => {
-    try {
-        // Find the member and populate referrals at each level
-        const member = await Member.findById(req.member._id)
-                .populate({
-                    path: 'referrals.referrals.memberId', // Populate memberId for nested referrals
-                    select: 'profilePicture fullName type vipAt createdAt -_id' // Select only the fullName of referred members
-                })
-                .populate({
-                    path: 'referrals.referrals.referrerId', // Populate referrerId for nested referrals (Level 2 and beyond)
-                    select: 'fullName' // Select only the fullName of referrers
-                });
-
-        if (!member) {
-            res.status(404);
-            throw new Error('Member not found');
-        }
-
-        const referralData = {
-            referrals: []
-        };
-
-        // Iterate through each level of referrals
-        member.referrals.forEach(levelEntry => {
-            levelEntry.referrals.forEach(referral => {
-                let referrerNode = referralData.referrals.find(
-                        node => node.referrerFullName === (referral.referrerId?.fullName || 'Unknown Referrer')
-                );
-
-                if (!referrerNode) {
-                    referrerNode = {
-                        referrerFullName: referral.referrerId?.fullName || 'Unknown Referrer',
-                        referrals: []
-                    };
-                    referralData.referrals.push(referrerNode);
-                }
-
-                referrerNode.referrals.push({
-                    level: levelEntry.level,
-                    memberFullName: referral.memberId?.fullName || 'Unknown Member',
-                    profilePicture: referral.memberId?.profilePicture || null,
-                    type: referral.memberId?.type || null,
-                    vipAt: referral.memberId?.vipAt || null,
-                    referredAt: referral.memberId?.createdAt || null
-                });
-            });
-        });
-
-        // Return the formatted response
-        res.status(200).json(referralData);
-    } catch (error) {
-        res.status(500).json({message: 'Error retrieving referral details', error: error.message});
-    }
-});
-
-const getReferralV2 = asyncHandler(async (req, res) => {
     const {level} = req.query;
 
     if (!level) {
@@ -470,7 +415,7 @@ const getReferralV2 = asyncHandler(async (req, res) => {
             return {
                 referrer: populatedReferrer,
                 member: populatedMember,
-                referredAt: referral.referredAt
+                createdAt: referral.createdAt
             };
         }));
 
@@ -625,4 +570,4 @@ const sendInvitationEmail = async (recipientEmail, referralCode, playStoreInvita
 };
 
 
-module.exports = {registerMember, loginMember, getMember, updateMember, inviteMember, getReferral, getReferralV2, getVIPStatistic};
+module.exports = {registerMember, loginMember, getMember, updateMember, inviteMember, getReferral, getVIPStatistic};
