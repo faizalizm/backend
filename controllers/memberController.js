@@ -410,7 +410,6 @@ const getReferral = asyncHandler(async (req, res) => {
         };
 
         // Iterate through each level of referrals
-        // Process referrals
         member.referrals.forEach(levelEntry => {
             levelEntry.referrals.forEach(referral => {
                 let referrerNode = referralData.referrals.find(
@@ -435,7 +434,6 @@ const getReferral = asyncHandler(async (req, res) => {
                 });
             });
         });
-
 
         // Return the formatted response
         res.status(200).json(referralData);
@@ -465,12 +463,13 @@ const getTotalLiveVIP = async () => {
 
 const getRecentVIP = async () => {
     try {
-        const period = 48; // 48 hours ago
-        const recentPeriod = new Date(Date.now() - period * 60 * 60 * 1000);
+//        const period = 48; // 48 hours ago
+//        const recentPeriod = new Date(Date.now() - period * 60 * 60 * 1000);
+
         return await Member.find(
                 {
-                    type: 'VIP', // Match members with type VIP
-                    vipAt: {$gte: recentPeriod} // Filter by vipAt >= 48 hours ago
+                    type: 'VIP'
+//                    vipAt: {$gte: recentPeriod}}, // Filter by vipAt >= 48 hours ago}, // Match members with type VIP
                 },
                 {
                     profilePicture: 1,
@@ -478,7 +477,9 @@ const getRecentVIP = async () => {
                     vipAt: 1,
                     _id: 0 // Exclude the _id field
                 }
-        );
+        )
+                .sort({vipAt: -1}) // Sort by vipAt in descending order (most recent first)
+                .limit(10);
 
     } catch (error) {
         logger.error('Error getting recent VIP : ', error.message);
