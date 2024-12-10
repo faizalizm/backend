@@ -393,7 +393,7 @@ const getReferral = asyncHandler(async (req, res) => {
         const member = await Member.findById(req.member._id)
                 .populate({
                     path: 'referrals.referrals.memberId', // Populate memberId for nested referrals
-                    select: 'fullName type vipAt createdAt -_id' // Select only the fullName of referred members
+                    select: 'profilePicture fullName type vipAt createdAt -_id' // Select only the fullName of referred members
                 })
                 .populate({
                     path: 'referrals.referrals.referrerId', // Populate referrerId for nested referrals (Level 2 and beyond)
@@ -439,6 +439,45 @@ const getReferral = asyncHandler(async (req, res) => {
         res.status(200).json(referralData);
     } catch (error) {
         res.status(500).json({message: 'Error retrieving referral details', error: error.message});
+    }
+});
+
+const getReferralV2 = asyncHandler(async (req, res) => {
+    const {level} = req.query;
+
+    if (!level) {
+        return res.status(400).json({message: "Level is required"});
+    }
+
+    try {
+        // Find the member based on their ID
+        const member = await Member.findById(req.member._id);
+
+        if (!member) {
+            return res.status(404).json({message: "Member not found"});
+        }
+
+        const referralsForLevel = member.referrals.find(referral => referral.level === level);
+
+        if (!referralsForLevel) {
+            return res.status(404).json({message: `No referrals found for level ${level}`});
+        }
+
+        const populatedReferrals = await Promise.all(referralsForLevel.referrals.map(async (referral) => {
+            const populatedReferrer = await Member.findById(referral.referrerId).select('profilePicture fullName type vipAt createdAt -_id');
+            const populatedMember = await Member.findById(referral.memberId).select('profilePicture fullName type vipAt createdAt -_id');
+
+            return {
+                referrer: populatedReferrer,
+                member: populatedMember,
+                referredAt: referral.referredAt
+            };
+        }));
+
+        return res.status(200).json({referrals: populatedReferrals});
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({message: "An error occurred while retrieving referrals"});
     }
 });
 
@@ -559,4 +598,4 @@ const sendInvitationEmail = async (recipientEmail, referralCode, playStoreInvita
 };
 
 
-module.exports = {registerMember, loginMember, getMember, updateMember, inviteMember, getReferral, getVIPStatistic};
+module.exports = {registerMember, loginMember, getMember, updateMember, inviteMember, getReferral, getReferralV2, getVIPStatistic};
