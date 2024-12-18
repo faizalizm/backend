@@ -336,8 +336,6 @@ const updateMember = asyncHandler(async (req, res) => {
         updates.password = hashedPassword;
     }
 
-    logger.info(req.body);
-
     const updatedMember = await Member.findByIdAndUpdate(req.member._id, updates, {
         new : true,
         runValidators: true // Ensures schema validation is applied

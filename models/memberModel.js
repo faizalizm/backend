@@ -1,5 +1,8 @@
 const mongoose = require('mongoose');
 
+const bankDetailsSchema = require('./bankDetailsSchema');
+const shippingDetailsSchema = require('./shippingDetailsSchema');
+
 const memberSchema = new mongoose.Schema({
     profilePicture: {
         type: String,
@@ -18,6 +21,9 @@ const memberSchema = new mongoose.Schema({
     fullName: {
         type: String,
         required: [true, 'Please add your name']
+    },
+    username: {
+        type: String
     },
     email: {
         type: String,
@@ -83,9 +89,23 @@ const memberSchema = new mongoose.Schema({
     vipAt: {
         type: Date,
         default: null
+    },
+    // Bank Details
+    withdrawalDetails: {
+        mipayAccountNumber: {
+            type: String
+        },
+        bankDetails: {
+            type: bankDetailsSchema
+        }
+    },
+    // Shipping Details
+    shippingDetails: {
+        type: shippingDetailsSchema
     }
 }, {
     timestamps: true
 });
+
 
 module.exports = mongoose.model('Member', memberSchema);

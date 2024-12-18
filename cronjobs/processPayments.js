@@ -71,7 +71,7 @@ const processPayments = async () => {
 
 
                 // Ensure the member exists
-                const memberExist = await Member.findOne({_id: wallet.memberId});
+                const memberExist = await Member.findOne(wallet.memberId, { _id: 1 });
                 if (!memberExist) {
                     logger.info(`❌ Member not found for wallet ${wallet._id}`);
                     continue;

@@ -114,10 +114,11 @@ const topupWallet = asyncHandler(async (req, res) => {
 });
 
 const withdrawWallet = asyncHandler(async (req, res) => {
-    const {amount, bankName, bankAccountName, bankAccountNumber} = req.body;
+    const {withdrawChannel, amount, ...otherData} = req.body;
+
     const minWithdrawal = 1000;
 
-    if (!amount || !bankName || !bankAccountName || !bankAccountNumber) {
+    if (!amount || !withdrawChannel) {
         res.status(400);
         throw new Error('Please add all fields');
     }
@@ -125,11 +126,6 @@ const withdrawWallet = asyncHandler(async (req, res) => {
     if (amount <= 0) {
         res.status(400);
         throw new Error('Invalid withdrawal amount');
-    }
-
-    if (!/^\d+$/.test(bankAccountNumber)) {
-        res.status(400);
-        throw new Error('Invalid bank account number format');
     }
 
     if (amount < minWithdrawal) {
@@ -144,6 +140,47 @@ const withdrawWallet = asyncHandler(async (req, res) => {
         throw new Error('Wallet Not Found');
     }
 
+            const transactionData = {
+                    walletId: wallet._id,
+                    systemType: 'HubWallet',
+                    type: 'Debit',
+                    description: 'Withdrawal',
+                    status: 'In Progress',
+                    amount: amount,
+        withdrawalDetails: {}
+            };
+
+    if (withdrawChannel === 'Bank') {
+        const {bankDetails} = req.body;
+        const {bankName, bankAccountName, bankAccountNumber} = bankDetails;
+        if (!bankName || !bankAccountName || !bankAccountNumber) {
+            res.status(400);
+            throw new Error('Please provide all bank details');
+        }
+
+        if (!/^\d+$/.test(bankAccountNumber)) {
+            res.status(400);
+            throw new Error('Invalid bank account number format');
+        }
+
+        transactionData.withdrawalDetails.bankDetails = {
+            bankName,
+            bankAccountName,
+            bankAccountNumber
+        };
+
+    } else if (withdrawChannel === 'MiPay') {
+        const {mipayAccountNumber} = req.body;
+        if (!mipayAccountNumber) {
+            return res.status(400).json({message: 'Please provide MiPay account number'});
+        }
+
+        transactionData.withdrawalDetails.mipayAccountNumber = mipayAccountNumber;
+    } else {
+        res.status(404);
+        throw new Error('Withdraw channel not supported');
+    }
+
     logger.info(`Wallet Balance: ${wallet.balance}, Withdrawal Amount: ${amount}`);
     // Check if wallet balance is sufficient for the withdrawal
     if (wallet.balance < amount) {
@@ -152,16 +189,8 @@ const withdrawWallet = asyncHandler(async (req, res) => {
     }
 
     try {
-        // Create Transaction
-        const transaction = await Transaction.create({
-            walletId: wallet._id,
-            systemType: 'HubWallet',
-            type: 'Debit',
-            description: 'Withdrawal',
-            status: 'In Progress',
-            amount: amount,
-            bankName, bankAccountName, bankAccountNumber
-        });
+        transactionData.withdrawalDetails.type = withdrawChannel;
+        const transaction = await Transaction.create(transactionData);
 
         if (!transaction) {
             res.status(500);
@@ -211,7 +240,7 @@ const transferVerification = asyncHandler(async(req, res) => {
         throw new Error('Recipient Not Found');
     } else {
         res.status(200).json({
-            memberFullName: recipient.fullName,
+            memberFullName: recipient.fullName
         });
     }
 });

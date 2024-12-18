@@ -1,5 +1,8 @@
 const mongoose = require('mongoose');
 
+const bankDetailsSchema = require('./bankDetailsSchema');
+const shippingDetailsSchema = require('./shippingDetailsSchema');
+
 const transactionSchema = new mongoose.Schema({
     walletId: {
         type: mongoose.Schema.Types.ObjectId,
@@ -68,17 +71,20 @@ const transactionSchema = new mongoose.Schema({
         required: [true, 'Please specify the amount'],
         min: [0, 'Amount must be a positive number']
     },
-    bankName: {
-        type: String,
-        default: null // For Withdrawal
+    withdrawalDetails: {
+        type: {
+            type: String,
+            enum: ['MiPay', 'Bank']
+        },
+        mipayAccountNumber: {
+            type: String
+        },
+        bankDetails: {
+            type: bankDetailsSchema
+        }
     },
-    bankAccountName: {
-        type: String,
-        default: null // For Withdrawal
-    },
-    bankAccountNumber: {
-        type: Number,
-        default: null // For Withdrawal
+    shippingDetails: {// Shipping Details - For txn involve Shipping
+        type: shippingDetailsSchema
     }
 }, {
     timestamps: true

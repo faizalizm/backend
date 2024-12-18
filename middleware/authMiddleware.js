@@ -22,7 +22,7 @@ const protect = asyncHandler(async (req, res, next) => {
             const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
             // Find member
-            const member = await Member.findById(decoded.id).select('-password');
+            const member = await Member.findById(decoded.id).select('-profilePicture -password -referrals');
 
             if (!member) {
                 res.status(401);
