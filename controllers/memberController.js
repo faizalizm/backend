@@ -248,6 +248,13 @@ const updateMember = asyncHandler(async (req, res) => {
     // Remove restricted fields
     const {_id, createdAt, updatedAt, referralCode, type, ...updates} = req.body;
 
+    if (updates.withdrawalDetails) {
+        const {bankName, bankAccountName, bankAccountNumber} = updates.withdrawalDetails;
+        if (!bankName || !bankAccountName || !bankAccountNumber) {
+            res.status(400);
+            throw new Error('Please provide all bank details');
+        }
+    }
 
     // Check if the referral code is being updated
     if (updates.referredBy) {
@@ -335,12 +342,16 @@ const updateMember = asyncHandler(async (req, res) => {
         const hashedPassword = await bcrypt.hash(updates.password, salt);
         updates.password = hashedPassword;
     }
-
-    const updatedMember = await Member.findByIdAndUpdate(req.member._id, updates, {
-        new : true,
-        runValidators: true // Ensures schema validation is applied
-    }).select('-_id -vipAt -createdAt -updatedAt -__v -referrals -referredBy -referralCode -type -password');
-    res.status(200).json(updatedMember);
+    try {
+        const updatedMember = await Member.findByIdAndUpdate(req.member._id, updates, {
+            new : true,
+            runValidators: true // Ensures schema validation is applied
+        }).select('-_id -vipAt -createdAt -updatedAt -__v -referrals -referredBy -referralCode -type -password');
+        res.status(200).json(updatedMember);
+    } catch (error) {
+        res.status(400);
+        throw error;
+    }
 });
 
 const inviteMember = asyncHandler(async (req, res) => {

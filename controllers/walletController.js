@@ -437,19 +437,31 @@ const genQRCode = asyncHandler(async (req, res) => {
 });
 
 const sendWithdrawalNotification = async (member, transaction) => {
-    const htmlTemplatePath = path.join(__dirname, '..', 'email', 'walletWithdrawal.html');
-    let htmlContent = fs.readFileSync(htmlTemplatePath, 'utf-8');
+    let htmlContent = null;
 
-    // Replace placeholders with actual data
-    htmlContent = htmlContent.replace('${member.fullName}', member.fullName);
-    htmlContent = htmlContent.replace('${member.email}', member.email);
-    htmlContent = htmlContent.replace('${member.phone}', member.phone);
+    // Conditional replacements based on withdrawal type
+    if (transaction.withdrawalDetails.type === "Bank") {
+        htmlContent = fs.readFileSync(path.join(__dirname, '..', 'email', 'walletWithdrawal.html'), 'utf-8');
+        htmlContent = htmlContent
+                .replace('${bankName}', transaction.withdrawalDetails.bankDetails.bankName || 'N/A')
+                .replace('${bankAccountName}', transaction.withdrawalDetails.bankDetails.bankAccountName || 'N/A')
+                .replace('${bankAccountNumber}', transaction.withdrawalDetails.bankDetails.bankAccountNumber || 'N/A')
+                .replace('${mipayAccountNumber}', '');
+    } else if (transaction.withdrawalDetails.type === "MiPay") {
+        htmlContent = fs.readFileSync(path.join(__dirname, '..', 'email', 'walletWithdrawalCard.html'), 'utf-8');
+        htmlContent = htmlContent
+                .replace('${mipayAccountNumber}', transaction.withdrawalDetails.mipayAccountNumber || 'N/A')
+                .replace('${bankName}', '')
+                .replace('${bankAccountName}', '')
+                .replace('${bankAccountNumber}', '');
+    }
 
-    htmlContent = htmlContent.replace('${bankName}', transaction.bankName);
-    htmlContent = htmlContent.replace('${bankAccountName}', transaction.bankAccountName);
-    htmlContent = htmlContent.replace('${bankAccountNumber}', transaction.bankAccountNumber);
+    htmlContent = htmlContent
+            .replace('${member.fullName}', member.fullName)
+            .replace('${member.email}', member.email)
+            .replace('${member.phone}', member.phone)
+            .replace('${amount}', `RM ${(transaction.amount / 100).toFixed(2)}`);
 
-    htmlContent = htmlContent.replace('${amount}', "RM " + (transaction.amount / 100).toFixed(2));
 
     try {
         const transporter = nodemailer.createTransport({
