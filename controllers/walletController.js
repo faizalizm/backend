@@ -28,13 +28,41 @@ const getWallet = asyncHandler(async (req, res) => {
     // Find all transactions linked to the wallet
     const transactions = await Transaction.find({
         $or: [
-            {systemType: 'HubWallet'},
-            {systemType: 'FPX'}
-        ],
-        walletId: wallet._id,
-        status: 'Success',
-        createdAt: {$gte: ninetyDaysAgo}
-    }).select('-_id -walletId -__v').sort({createdAt: -1});
+            // Withdrawals: Include 'Success' and 'In Progress'
+            {
+                $and: [
+                    {description: 'Withdrawal'},
+                    {
+                        systemType: {$in: ['HubWallet', 'FPX']},
+                        walletId: wallet._id,
+                        status: {$in: ['Success', 'In Progress']},
+                        createdAt: {$gte: ninetyDaysAgo}
+                    }
+                ]
+            },
+            // All other transactions: Only 'Success'
+            {
+                $and: [
+                    {description: {$ne: 'Withdrawal'}},
+                    {
+                        systemType: {$in: ['HubWallet', 'FPX']},
+                        walletId: wallet._id,
+                        status: 'Success',
+                        createdAt: {$gte: ninetyDaysAgo}
+                    }
+                ]
+            }
+        ]
+    }, {
+        systemType: 1,
+        type: 1,
+        description: 1,
+        status: 1,
+        amount: 1,
+        createdAt: 1,
+        withdrawalDetails: 1,
+        shippingDetails: 1
+    }).sort({createdAt: -1});
 
     res.json({
         balance: wallet.balance,
