@@ -248,12 +248,28 @@ const updateMember = asyncHandler(async (req, res) => {
     // Remove restricted fields
     const {_id, createdAt, updatedAt, referralCode, type, ...updates} = req.body;
 
-    if (updates.withdrawalDetails) {
-        const {bankName, bankAccountName, bankAccountNumber} = updates.withdrawalDetails;
+    // Check for withdrawal details
+    const currentWithdrawalDetails = req.member.withdrawalDetails || {};
+    const withdrawalDetails = {...currentWithdrawalDetails};
+    if (updates.withdrawalDetails?.bankDetails) {
+        const {bankName, bankAccountName, bankAccountNumber} = updates.withdrawalDetails.bankDetails;
         if (!bankName || !bankAccountName || !bankAccountNumber) {
             res.status(400);
             throw new Error('Please provide all bank details');
         }
+        withdrawalDetails.bankDetails = {
+            bankName,
+            bankAccountName,
+            bankAccountNumber
+        };
+    }
+
+    if (updates.withdrawalDetails?.mipayAccountNumber) {
+        withdrawalDetails.mipayAccountNumber = updates.withdrawalDetails.mipayAccountNumber;
+    }
+
+    if (Object.keys(withdrawalDetails).length) {
+        updates.withdrawalDetails = withdrawalDetails;
     }
 
     // Check if the referral code is being updated
