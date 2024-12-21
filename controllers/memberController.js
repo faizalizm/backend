@@ -217,6 +217,7 @@ const loginMember = asyncHandler(async (req, res) => {
     if (member && (await bcrypt.compare(password, member.password))) {
         res.json({
             fullName: member.fullName,
+            userName: member.userName,
             email: member.mail,
             referralCode: member.referralCode,
             type: member.type,
