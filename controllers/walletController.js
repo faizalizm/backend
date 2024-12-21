@@ -244,23 +244,46 @@ const withdrawWallet = asyncHandler(async (req, res) => {
 });
 
 const transferVerification = asyncHandler(async(req, res) => {
-    const {email, phone} = req.body;
+    const {email, phone, paymentCode} = req.body;
 
-    if (!email && !phone) {
-        res.status(400);
-        throw new Error('Email or phone is required for transfer');
-    }
+    let recipientWallet;
 
-    if (email && email.trim() === req.member.email) {
-        res.status(400);
-        throw new Error('Could not transfer to your own account');
+    if (paymentCode) {
+        if (!paymentCode.startsWith('payment://')) {
+            res.status(400).json({error: 'QR code is not valid'});
+            return;
+        }
+
+        recipientWallet = await Wallet.findOne({ paymentCode }, { _id: 1, memberId: 1 });
+
+        if (!recipientWallet) {
+            res.status(404);
+            throw new Error('Recipient Not Found');
+        } else if (recipientWallet.memberId === req.member._id) {
+            res.status(400);
+            throw new Error('Could not transfer to your own account');
+        }
+    } else {
+        // Case 2: Sending via entered value (email or phone)
+        if (!email && !phone) {
+            res.status(400).json({error: 'Email or phone is required for transfer'});
+            return;
+        }
+
+        if ((email && email.trim() === req.member.email)
+                || phone && phone.trim() === req.member.phone) {
+            res.status(400);
+            throw new Error('Could not transfer to your own account');
+        }
     }
 
     let recipient;
-    if (phone) {
-        recipient = await Member.findOne({phone});
+    if (paymentCode) {
+        recipient = await Member.findOne({_id: recipientWallet.memberId});
     } else if (email) {
         recipient = await Member.findOne({email});
+    } else if (phone) {
+        recipient = await Member.findOne({phone});
     }
 
     if (!recipient) {
