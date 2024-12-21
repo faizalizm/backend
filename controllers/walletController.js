@@ -244,7 +244,7 @@ const withdrawWallet = asyncHandler(async (req, res) => {
 });
 
 const transferVerification = asyncHandler(async(req, res) => {
-    const {email, phone, paymentCode} = req.body;
+    const {paymentCode, email, phone} = req.body;
 
     let recipientWallet;
 
@@ -254,7 +254,7 @@ const transferVerification = asyncHandler(async(req, res) => {
             throw new Error('QR code is not valid');
         }
 
-        recipientWallet = await Wallet.findOne({ paymentCode }, { _id: 1, memberId: 1 });
+        recipientWallet = await Wallet.findOne({paymentCode}, {_id: 1, memberId: 1});
 
         if (!recipientWallet) {
             res.status(404);
@@ -402,11 +402,16 @@ const qrPayment = asyncHandler(async (req, res) => {
         throw new Error('Amount is required');
     }
 
+    if (!paymentCode.startsWith('payment://')) {
+        res.status(400);
+        throw new Error('QR code is not valid');
+    }
+
     const recipientWallet = await Wallet.findOne({paymentCode});
     if (!recipientWallet) {
         res.status(404);
         throw new Error('Recipient Not Found');
-    } else if (paymentCode.trim() === req.member.paymentCode) {
+    } else if (paymentCode.trim() === recipientWallet.paymentCode) {
         res.status(400);
         throw new Error('Could not transfer to your own account');
     }
