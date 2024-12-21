@@ -22,7 +22,7 @@ const memberSchema = new mongoose.Schema({
         type: String,
         required: [true, 'Please add your name']
     },
-    username: {
+    userName: {
         type: String
     },
     email: {
