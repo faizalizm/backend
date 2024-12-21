@@ -407,16 +407,8 @@ const qrPayment = asyncHandler(async (req, res) => {
         throw new Error('QR code is not valid');
     }
 
-    const recipientWallet = await Wallet.findOne({paymentCode}, {_id: 1, balance: 1, currency: 1, paymentCode: 1});
-    if (!recipientWallet) {
-        res.status(404);
-        throw new Error('Recipient Not Found');
-    } else if (paymentCode.trim() === recipientWallet.paymentCode) {
-        res.status(400);
-        throw new Error('Could not transfer to your own account');
-    }
 
-    const senderWallet = await Wallet.findOne({memberId: req.member._id}, {_id: 1, balance: 1, currency: 1});
+    const senderWallet = await Wallet.findOne({memberId: req.member._id}, {_id: 1, balance: 1, currency: 1, paymentCode: 1});
     if (!senderWallet) {
         res.status(404);
         throw new Error('Sender Wallet Not Found');
@@ -426,6 +418,15 @@ const qrPayment = asyncHandler(async (req, res) => {
     if (senderWallet.balance < amount) {
         res.status(402); // HTTP 402: Payment Required
         throw new Error('Insufficient funds');
+    }
+
+    const recipientWallet = await Wallet.findOne({paymentCode}, {_id: 1, balance: 1, currency: 1, paymentCode: 1});
+    if (!recipientWallet) {
+        res.status(404);
+        throw new Error('Recipient Not Found');
+    } else if (paymentCode.trim() === senderWallet.paymentCode) {
+        res.status(400);
+        throw new Error('Could not transfer to your own account');
     }
 
     const description = 'QR Payment';
