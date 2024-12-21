@@ -250,8 +250,8 @@ const transferVerification = asyncHandler(async(req, res) => {
 
     if (paymentCode) {
         if (!paymentCode.startsWith('payment://')) {
-            res.status(400).json({error: 'QR code is not valid'});
-            return;
+            res.status(400);
+            throw new Error('QR code is not valid');
         }
 
         recipientWallet = await Wallet.findOne({ paymentCode }, { _id: 1, memberId: 1 });
