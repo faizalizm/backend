@@ -279,11 +279,11 @@ const transferVerification = asyncHandler(async(req, res) => {
 
     let recipient;
     if (paymentCode) {
-        recipient = await Member.findOne({_id: recipientWallet.memberId});
+        recipient = await Member.findOne({_id: recipientWallet.memberId}, {_id: 1, fullName: 1, email: 1, phone: 1});
     } else if (email) {
-        recipient = await Member.findOne({email});
+        recipient = await Member.findOne({email}, {_id: 1, fullName: 1, email: 1, phone: 1});
     } else if (phone) {
-        recipient = await Member.findOne({phone});
+        recipient = await Member.findOne({phone}, {_id: 1, fullName: 1, email: 1, phone: 1});
     }
 
     if (!recipient) {
@@ -318,10 +318,10 @@ const transferWallet = asyncHandler(async (req, res) => {
     let recipient;
     if (phone) {
         description = 'Transfer via Phone';
-        recipient = await Member.findOne({phone});
+        recipient = await Member.findOne({phone}, {_id: 1, fullName: 1, email: 1, phone: 1});
     } else if (email) {
         description = 'Transfer via Email';
-        recipient = await Member.findOne({email});
+        recipient = await Member.findOne({email}, {_id: 1, fullName: 1, email: 1, phone: 1});
     }
 
     if (!recipient) {
@@ -329,13 +329,13 @@ const transferWallet = asyncHandler(async (req, res) => {
         throw new Error('Recipient Not Found');
     }
 
-    const senderWallet = await Wallet.findOne({memberId: req.member._id});
+    const senderWallet = await Wallet.findOne({memberId: req.member._id}, {_id: 1, balance: 1, currency: 1, paymentCode: 1});
     if (!senderWallet) {
         res.status(404);
         throw new Error('Sender Wallet Not Found');
     }
 
-    const recipientWallet = await Wallet.findOne({memberId: recipient._id});
+    const recipientWallet = await Wallet.findOne({memberId: recipient._id}, {_id: 1, balance: 1, currency: 1, paymentCode: 1});
     if (!recipientWallet) {
         res.status(404);
         throw new Error('Recipient Wallet Not Found');
@@ -407,7 +407,7 @@ const qrPayment = asyncHandler(async (req, res) => {
         throw new Error('QR code is not valid');
     }
 
-    const recipientWallet = await Wallet.findOne({paymentCode});
+    const recipientWallet = await Wallet.findOne({paymentCode}, {_id: 1, balance: 1, currency: 1, paymentCode: 1});
     if (!recipientWallet) {
         res.status(404);
         throw new Error('Recipient Not Found');
@@ -416,7 +416,7 @@ const qrPayment = asyncHandler(async (req, res) => {
         throw new Error('Could not transfer to your own account');
     }
 
-    const senderWallet = await Wallet.findOne({memberId: req.member._id});
+    const senderWallet = await Wallet.findOne({memberId: req.member._id}, {_id: 1, balance: 1, currency: 1});
     if (!senderWallet) {
         res.status(404);
         throw new Error('Sender Wallet Not Found');
@@ -476,7 +476,7 @@ const qrPayment = asyncHandler(async (req, res) => {
 
 const genQRCode = asyncHandler(async (req, res) => {
     // Find the wallet linked to the member
-    const wallet = await Wallet.findOne({memberId: req.member._id});
+    const wallet = await Wallet.findOne({memberId: req.member._id}, {paymentCode: 1});
     if (!wallet) {
         res.status(404);
         throw new Error('Wallet Not Found');
