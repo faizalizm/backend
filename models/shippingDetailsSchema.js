@@ -24,7 +24,13 @@ const shippingDetailsSchema = new mongoose.Schema({
     },
     postCode: {
         type: String,
-        required: true
+        required: true,
+        validate: {
+            validator: function (value) {
+                return /^\d{5}$/.test(value); // Adjust for country-specific formats
+            },
+            message: 'Invalid post code format.'
+        }
     },
     country: {
         type: String,
