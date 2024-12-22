@@ -16,7 +16,7 @@ const transactionSchema = new mongoose.Schema({
     },
     type: {
         type: String,
-        required: [true, 'Please add type'],
+        required: [true, 'Please specify type'],
         enum: [
             'Credit', // Added
             'Debit', // Deducted
@@ -25,7 +25,7 @@ const transactionSchema = new mongoose.Schema({
     },
     description: {
         type: String,
-        required: [true, 'Please add description'],
+        required: [true, 'Please specify description'],
         enum: [
             'Top Up',
             'Withdrawal',
@@ -41,7 +41,7 @@ const transactionSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        required: [true, 'Please add status'],
+        required: [true, 'Please specify status'],
         enum: ['In Progress', 'Success', 'Failed', 'Expired']
     },
     memberId: {
@@ -68,7 +68,7 @@ const transactionSchema = new mongoose.Schema({
     },
     amount: {
         type: Number,
-        required: [true, 'Please specify the amount'],
+        required: [true, 'Please specify amount'],
         min: [0, 'Amount must be a positive number']
     },
     withdrawalDetails: {

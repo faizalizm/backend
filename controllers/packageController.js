@@ -17,7 +17,10 @@ const getPackage = asyncHandler(async (req, res) => {
         throw new Error('Member is already a VIP');
     }
 
-    const package = await Package.find({type: 'VIP'}).select('-categoryCode -packageCharge -emailContent -_id -createdAt -updatedAt -__v');
+    const package = await Package.find(
+            {type: 'VIP'},
+            {_id: 0, picture: 1, type: 1, name: 1, description: 1, price: 1, code: 1}
+    );
 
     if (package.length > 0) {
         res.json(package);
@@ -43,14 +46,20 @@ const purchasePackage = asyncHandler(async (req, res) => {
         throw new Error('Member is already a VIP');
     }
 
-    const package = await Package.findOne({code, type: 'VIP'});
+    const package = await Package.findOne(
+            {code, type: 'VIP'},
+            {name: 1, price: 1, categoryCode: 1, packageCharge: 1, emailContent: 1}
+    );
     if (!package) {
         res.status(404);
         throw new Error('Package Not Found');
     }
 
     // Find the wallet linked to the member
-    const wallet = await Wallet.findOne({memberId: req.member._id});
+    const wallet = await Wallet.findOne(
+            {memberId: req.member._id},
+            {paymentCode: 0}
+    );
     if (!wallet) {
         res.status(404);
         throw new Error('Wallet Not Found');
@@ -125,7 +134,7 @@ const purchasePackage = asyncHandler(async (req, res) => {
             await Transaction.findByIdAndUpdate(transaction._id, {billCode}, {new : true});
 
             // Query to ToyyibPay
-            getBillTransactionsToyyib(req.member._id, wallet, package.price, billCode, "VIP Payment");
+            getBillTransactionsToyyib(req.member._id, wallet._id, package.price, billCode, "VIP Payment");
 
             // Return the response to the client
             res.status(200).json({paymentUrl, paymentExpiry: billExpiryDate});

@@ -4,6 +4,8 @@ const {protect} = require('../middleware/authMiddleware');
 const {
     registerMember,
     loginMember,
+    getOtp,
+    deleteMember,
     getMember,
     updateMember,
     inviteMember,
@@ -15,6 +17,9 @@ const router = express.Router();
 
 router.post('/register', registerMember);
 router.post('/login', loginMember);
+
+router.get('/otp', getOtp);
+router.delete('/', deleteMember);
 
 router.get('/', protect, getMember);
 router.patch('/', protect, updateMember); // MBR-4, MBR-6, 

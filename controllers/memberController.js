@@ -11,6 +11,7 @@ const {logger} = require('../services/logger');
 
 const Member = require('../models/memberModel');
 const Wallet = require('../models/walletModel');
+const Otp = require('../models/otpModel');
 
 const registerMember = asyncHandler(async (req, res) => {
     const {fullName, email, password, phone, referredBy} = req.body;
@@ -229,20 +230,140 @@ const loginMember = asyncHandler(async (req, res) => {
     }
 });
 
+const getOtp = asyncHandler(async (req, res) => {
+    const {email, phone} = req.query;
+
+    if (!email && !phone) {
+        res.status(400);
+        throw new Error('Email or phone is required');
+    }
+
+    try {
+        const query = {};
+        if (email) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (email && !emailRegex.test(email)) {
+                res.status(400);
+                throw new Error('Invalid email format');
+            }
+
+            query.email = email;
+        }
+        if (phone)
+            query.phone = phone;
+
+        const lastOtp = await Otp.findOne(query).sort({createdAt: -1}); // Get the most recent OTP
+
+        if (lastOtp) {
+            const now = new Date();
+            const lastSent = new Date(lastOtp.createdAt);
+            const interval = 2 * 60 * 1000; // 2 minutes in milliseconds
+
+            // Calculate the time difference between the current time and the last OTP sent time
+            const timeDifference = now - lastSent;
+
+            // If the time difference is less than the interval, calculate the remaining time
+            if (timeDifference < interval) {
+                const remainingTime = interval - timeDifference;
+                const remainingSeconds = Math.floor(remainingTime / 1000); // Convert to seconds
+
+                res.status(429);
+                throw new Error(`Please wait ${remainingSeconds} second${remainingSeconds !== 1 ? 's' : ''} before requesting another OTP`);
+            }
+        }
+
+        // Generate OTP
+        const otp = Math.floor(100000 + Math.random() * 900000); // 6-digit OTP
+        const otpExpiry = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes from now
+        logger.info(`Email : ${email}, OTP : ${otp}, Expiry : ${otpExpiry}`);
+
+        // Save OTP
+        const createdOtp = await Otp.create({email, phone, otp, otpExpiry});
+
+        if (email) {
+            await sendOtpEmail(email, otp);
+        }
+
+        res.status(200).json({
+            otp, // Remove in production for security reasons
+            expiry: otpExpiry,
+        });
+    } catch (error) {
+        res.status(500);
+        throw error;
+    }
+});
+
+const deleteMember = asyncHandler(async (req, res) => {
+    const {email, password, otp} = req.body;
+
+    if (!email || !password || !otp) {
+        res.status(400);
+        throw new Error('Please provide all details');
+    }
+
+    // Check user email
+    let member = await Member.findOne({email}, {password: 1, phone: 1, email: 1, isDeleted: 1});
+    if (!member) {
+        res.status(404);
+        throw new Error('Member not found');
+    }
+
+    // Check if member is not deleted
+    if (member.isDeleted) {
+        res.status(400);
+        throw new Error('Member account is already deleted');
+    }
+
+    // Find from OTP list
+    const lastOtp = await Otp.findOne({email}).sort({createdAt: -1}); // Get the most recent OTP
+    if (!lastOtp) {
+        res.status(404);
+        throw new Error('No OTP found for this email');
+    } else if (otp != lastOtp.otp) {
+        res.status(400);
+        throw new Error('OTP is invalid');
+    }
+
+    // Check OTP expiry
+    const now = new Date();
+    const otpExpiry = new Date(lastOtp.otpExpiry);
+    if (now > otpExpiry) {
+        res.status(400);
+        throw new Error('OTP has expired');
+    }
+
+    if (await bcrypt.compare(password, member.password)) {
+        // Mark as deleted
+        member.fullName = null;
+        member.userName = null;
+        member.email = null;
+        member.phone = null;
+        member.withdrawalDetails = null;
+        member.shippingDetails = null;
+        member.isDeleted = true;
+        await member.save();
+
+        res.status(200).json({});
+    } else {
+        res.status(400);
+        throw new Error('Invalid credentials');
+    }
+});
+
 const getMember = asyncHandler(async (req, res) => {
-    // Exclude fields from the response
-    const {referrals, _id, createdAt, updatedAt, __v, ...memberData} = req.member.toObject();
+    const member = await Member.findById(req.member._id, {_id: 0, password: 0, referrals: 0, __v: 0}).lean();
 
     if (!req.member.referredBy) {
-        memberData.referredBy = 'Not Set';
+        member.referredBy = 'Not Set';
     } else {
-        const referrer = await Member.findOne({_id: req.member.referredBy});
+        const referrer = await Member.findOne({_id: req.member.referredBy}, {_id: 0, fullName: 1});
         if (referrer) {
-            memberData.referredBy = referrer.fullName;
+            member.referredBy = referrer.fullName;
         }
     }
 
-    res.status(200).json(memberData);
+    res.status(200).json(member);
 });
 
 const updateMember = asyncHandler(async (req, res) => {
@@ -595,5 +716,46 @@ const sendInvitationEmail = async (recipientEmail, referralCode, playStoreInvita
     }
 };
 
+const sendOtpEmail = async (recipientEmail, otp) => {
+    // Fetch and modify HTML template
+    const htmlTemplatePath = path.join(__dirname, '..', 'email', 'otp.html');
+    let htmlContent = fs.readFileSync(htmlTemplatePath, 'utf-8');
 
-module.exports = {registerMember, loginMember, getMember, updateMember, inviteMember, getReferral, getVIPStatistic};
+    // Replace placeholders with actual data
+    htmlContent = htmlContent.replace('${otp}', otp);
+
+    console.table({
+        senderEmail: process.env.EMAIL_NOREPLY,
+        recipientEmail});
+
+    try {
+        const transporter = nodemailer.createTransport({
+            service: 'gmail', // Email service (e.g., Outlook, SendGrid)
+            auth: {
+                user: process.env.EMAIL_NOREPLY,
+                pass: process.env.EMAIL_PWD
+            }
+        });
+
+        // Email options
+        await transporter.sendMail({
+            from: process.env.EMAIL_NOREPLY,
+            to: recipientEmail,
+            subject: 'Reward Hub OTP',
+            html: htmlContent,
+            messageId: `invite-${Date.now()}@gmail.com`, // The `Message-ID` ensures a new thread
+            headers: {
+                'X-Priority': '1', // High priority
+                'X-Mailer': 'Nodemailer' // Email client info
+            }
+        });
+
+        logger.info('OTP sent successfully');
+    } catch (error) {
+        logger.error('Failed to send OTP :', error);
+        throw error;
+    }
+};
+
+
+module.exports = {registerMember, loginMember, getOtp, deleteMember, getMember, updateMember, inviteMember, getReferral, getVIPStatistic};
