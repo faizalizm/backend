@@ -22,8 +22,15 @@ const protect = asyncHandler(async (req, res, next) => {
             const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
             // Find member
-            const member = await Member.findById(decoded.id).select('-profilePicture -password -referrals');
-
+            const member = await Member.findById(
+                    {_id: decoded.id, isDeleted: {$ne: true}},
+                    {
+                        _id: 1,
+                        'profilePicture': 0,
+                        'password': 0,
+                        'referrals': 0
+                    }
+            );
             if (!member) {
                 res.status(401);
                 throw new Error('Member not found');

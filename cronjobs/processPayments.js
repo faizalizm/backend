@@ -28,7 +28,7 @@ const processTopup = async (memberId, walletId, amount) => {
     logger.info(`Previous Wallet Balance: ${wallet.balance - amount}, Updated Wallet Balance: ${wallet.balance}`);
 };
 
-const processVIPPayment = async (memberId, amount) => {
+const processVIPPayment = async (memberId, amount, transaction) => {
     logger.info('VIP Payment, updating member status');
 
     const member = await Member.findOne({_id: memberId}).select('-paymentCode -createdAt -updatedAt -__v');
@@ -41,6 +41,10 @@ const processVIPPayment = async (memberId, amount) => {
 
     logger.info(`⭐ Member ${member.fullName} upgraded to VIP`);
 
+    if (!transaction.shippingDetails) {
+      setImmediate(() => sendShippingNotification(transaction));
+    }
+    
     // Process VIP Referral Commission
     await processVIPCommision(member, amount);
 };
@@ -101,7 +105,7 @@ const processPayments = async () => {
                         if (transaction.description === "Top Up") {
                             await processTopup(wallet.memberId, wallet._id, transaction.amount);
                         } else if (transaction.description === "VIP Payment") {
-                            await processVIPPayment(wallet.memberId, transaction.amount);
+                            await processVIPPayment(wallet.memberId, transaction.amount, transaction);
                         } else {
                             logger.error(`⚠️ Unknown payment desciption for ${transaction.billCode}.`);
                         }
