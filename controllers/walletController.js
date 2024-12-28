@@ -61,6 +61,7 @@ const getWallet = asyncHandler(async (req, res) => {
         amount: 1,
         createdAt: 1,
         withdrawalDetails: 1,
+        shippingStatus: 1,
         shippingDetails: 1
     }).sort({createdAt: -1});
 

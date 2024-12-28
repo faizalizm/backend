@@ -1,8 +1,11 @@
 const asyncHandler = require('express-async-handler');
 const moment = require('moment-timezone');
+const fs = require('fs');
+const path = require('path');
 
 const axiosInstance = require('../services/axios');
 const {logger} = require('../services/logger');
+const {sendMail} = require('../services/nodemailer');
 const {getCategoryToyyib, createBillToyyib, getBillTransactionsToyyib} = require('../services/toyyibpay');
 
 const Package = require('../models/packageModel');
@@ -99,7 +102,7 @@ const purchasePackage = asyncHandler(async (req, res) => {
         // Process VIP Referral Commission
         processVIPCommision(req.member, package.price);
 
-        if (!shippingDetails) {
+        if (shippingDetails) {
             setImmediate(() => sendShippingNotification(transaction));
         }
         res.status(200).json({
