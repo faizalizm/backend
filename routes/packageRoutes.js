@@ -11,6 +11,6 @@ const router = express.Router();
 
 router.get('/', protect, getPackage);
 router.post('/purchase', protect, purchasePackage);
-router.post('/callback', protect, purchaseCallbackPackage);
+router.post('/callback', purchaseCallbackPackage);
 
 module.exports = router;

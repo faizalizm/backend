@@ -41,7 +41,7 @@ const processVIPPayment = async (memberId, amount, transaction) => {
 
     logger.info(`⭐ Member ${member.fullName} upgraded to VIP`);
 
-    if (!transaction.shippingDetails) {
+    if (transaction.shippingDetails) {
       setImmediate(() => sendShippingNotification(transaction));
     }
     
