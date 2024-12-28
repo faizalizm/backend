@@ -5,9 +5,9 @@ const asyncHandler = require('express-async-handler');
 const qrcode = require('qrcode');
 const fs = require('fs');
 const path = require('path');
-const nodemailer = require('nodemailer');
 
 const {logger} = require('../services/logger');
+const {sendMail} = require('../services/nodemailer');
 
 const Member = require('../models/memberModel');
 const Wallet = require('../models/walletModel');
@@ -273,20 +273,21 @@ const getOtp = asyncHandler(async (req, res) => {
         }
 
         // Generate OTP
+        const minutesAfterExpiry = 5;
         const otp = Math.floor(100000 + Math.random() * 900000); // 6-digit OTP
-        const otpExpiry = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes from now
+        const otpExpiry = new Date(Date.now() + minutesAfterExpiry * 60 * 1000); // 5 minutes from now
         logger.info(`Email : ${email}, OTP : ${otp}, Expiry : ${otpExpiry}`);
 
         // Save OTP
         const createdOtp = await Otp.create({email, phone, otp, otpExpiry});
 
         if (email) {
-            await sendOtpEmail(email, otp);
+            await sendOtpEmail(email, otp, minutesAfterExpiry, otpExpiry);
         }
 
         res.status(200).json({
-            otp, // Remove in production for security reasons
-            expiry: otpExpiry,
+//            otp, // Remove in production for security reasons
+            expiry: otpExpiry
         });
     } catch (error) {
         res.status(500);
@@ -683,78 +684,24 @@ const sendInvitationEmail = async (recipientEmail, referralCode, playStoreInvita
     htmlContent = htmlContent.replace('${referralCode}', referralCode);
     htmlContent = htmlContent.replace('${playStoreInvitation}', playStoreInvitation);
 
-    console.table({
-        senderEmail: process.env.EMAIL_NOREPLY,
-        recipientEmail});
-
-    try {
-        const transporter = nodemailer.createTransport({
-            service: 'gmail', // Email service (e.g., Outlook, SendGrid)
-            auth: {
-                user: process.env.EMAIL_NOREPLY,
-                pass: process.env.EMAIL_PWD
-            }
-        });
-
-        // Email options
-        await transporter.sendMail({
-            from: process.env.EMAIL_NOREPLY,
-            to: recipientEmail,
-            replyTo: process.env.EMAIL_ADMIN,
-            subject: 'Explore Rewards Hub!',
-            html: htmlContent,
-            messageId: `invite-${Date.now()}@gmail.com`, // The `Message-ID` ensures a new thread
-            headers: {
-                'X-Priority': '1', // High priority
-                'X-Mailer': 'Nodemailer' // Email client info
-            }
-        });
-
-        logger.info('Admin notification sent successfully');
-    } catch (error) {
-        logger.error('Failed to send admin notification:', error);
-    }
+    let mailId = 'invitation';
+    let subject = 'Explore Rewards Hub!';
+    await sendMail(mailId, subject, htmlContent, recipientEmail);
 };
 
-const sendOtpEmail = async (recipientEmail, otp) => {
+const sendOtpEmail = async (recipientEmail, otp, minutesAfterExpiry, otpExpiry) => {
     // Fetch and modify HTML template
     const htmlTemplatePath = path.join(__dirname, '..', 'email', 'otp.html');
     let htmlContent = fs.readFileSync(htmlTemplatePath, 'utf-8');
 
     // Replace placeholders with actual data
     htmlContent = htmlContent.replace('${otp}', otp);
+    htmlContent = htmlContent.replace('${minutesAfterExpiry}', minutesAfterExpiry);
+//    htmlContent = htmlContent.replace('${otpExpiry}', otpExpiry);
 
-    console.table({
-        senderEmail: process.env.EMAIL_NOREPLY,
-        recipientEmail});
-
-    try {
-        const transporter = nodemailer.createTransport({
-            service: 'gmail', // Email service (e.g., Outlook, SendGrid)
-            auth: {
-                user: process.env.EMAIL_NOREPLY,
-                pass: process.env.EMAIL_PWD
-            }
-        });
-
-        // Email options
-        await transporter.sendMail({
-            from: process.env.EMAIL_NOREPLY,
-            to: recipientEmail,
-            subject: 'Reward Hub OTP',
-            html: htmlContent,
-            messageId: `invite-${Date.now()}@gmail.com`, // The `Message-ID` ensures a new thread
-            headers: {
-                'X-Priority': '1', // High priority
-                'X-Mailer': 'Nodemailer' // Email client info
-            }
-        });
-
-        logger.info('OTP sent successfully');
-    } catch (error) {
-        logger.error('Failed to send OTP :', error);
-        throw error;
-    }
+    let mailId = 'otp';
+    let subject = 'Reward Hub OTP';
+    await sendMail(mailId, subject, htmlContent, recipientEmail);
 };
 
 

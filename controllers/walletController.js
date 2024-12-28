@@ -2,9 +2,9 @@ const asyncHandler = require('express-async-handler');
 const moment = require('moment-timezone');
 const fs = require('fs');
 const path = require('path');
-const nodemailer = require('nodemailer');
 
 const {logger} = require('../services/logger');
+const {sendMail} = require('../services/nodemailer');
 const {getCategoryToyyib, createBillToyyib, getBillTransactionsToyyib} = require('../services/toyyibpay');
 
 const Member = require('../models/memberModel');
@@ -522,32 +522,9 @@ const sendWithdrawalNotification = async (member, transaction) => {
             .replace('${member.phone}', member.phone)
             .replace('${amount}', `RM ${(transaction.amount / 100).toFixed(2)}`);
 
-
-    try {
-        const transporter = nodemailer.createTransport({
-            service: 'gmail',
-            auth: {
-                user: process.env.EMAIL_NOREPLY,
-                pass: process.env.EMAIL_PWD
-            }
-        });
-
-        await transporter.sendMail({
-            from: process.env.EMAIL_NOREPLY,
-            to: process.env.EMAIL_ADMIN,
-            subject: 'RewardsHub Cash Withdrawal Request',
-            html: htmlContent,
-            messageId: `invite-${Date.now()}@gmail.com`,
-            headers: {
-                'X-Priority': '1',
-                'X-Mailer': 'Nodemailer'
-            }
-        });
-
-        logger.info('Admin notification sent successfully');
-    } catch (error) {
-        logger.error('Failed to send admin notification:', error);
-    }
+    let mailId = 'withdrawal';
+    let subject = 'Reward Hub Cash Withdrawal Request';
+    await sendMail(mailId, subject, htmlContent);
 };
 
 module.exports = {getWallet, topupWallet, withdrawWallet, transferVerification, transferWallet, qrPayment, genQRCode};

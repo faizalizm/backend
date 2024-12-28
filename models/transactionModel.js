@@ -83,6 +83,10 @@ const transactionSchema = new mongoose.Schema({
             type: bankDetailsSchema
         }
     },
+    shippingStatus: {// Shipping Status - For txn involve Shipping
+        type: String,
+        enum: ['Preparing', 'Shipped', 'Delivered']
+    },
     shippingDetails: {// Shipping Details - For txn involve Shipping
         type: shippingDetailsSchema
     }

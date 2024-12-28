@@ -137,7 +137,7 @@ const getBillTransactionsToyyib = async (memberId, walletId, amount, billCode, t
                     if (type === "Top Up") {
                         processTopup(memberId, walletId, amount);
                     } else if (type === "VIP Payment") {
-                        processVIPPayment(memberId, amount);
+                        processVIPPayment(memberId, amount, transaction);
                     } else {
                         logger.info(`Type is not defined, success payment not processed`);
                     }
@@ -180,7 +180,7 @@ const processTopup = async (memberId, walletId, amount) => {
     logger.info(`Previous Wallet Balance: ${wallet.balance - amount}, Updated Wallet Balance: ${wallet.balance}`);
 };
 
-const processVIPPayment = async (memberId, amount) => {
+const processVIPPayment = async (memberId, amount, transaction) => {
     logger.info('VIP Payment, updating member status');
 
     const member = await Member.findOne({_id: memberId}).select('-paymentCode -createdAt -updatedAt -__v');
@@ -193,6 +193,10 @@ const processVIPPayment = async (memberId, amount) => {
 
     logger.info(`⭐ Member ${member.fullName} upgraded to VIP`);
 
+    if (!transaction.shippingDetails) {
+      setImmediate(() => sendShippingNotification(transaction));
+    }
+    
     // Process VIP Referral Commission
     await processVIPCommision(member, amount);
 };
