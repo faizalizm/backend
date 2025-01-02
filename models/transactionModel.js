@@ -32,6 +32,7 @@ const transactionSchema = new mongoose.Schema({
             'Transfer via Phone',
             'Transfer via Email',
             'QR Payment',
+            'Merchant QR Payment',
             'VIP Payment',
             'VIP Registration Commission',
             'Spending Rewards',
