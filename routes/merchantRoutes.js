@@ -5,7 +5,9 @@ const {
     searchMerchant,
     getMerchant,
     registerMerchant,
-    updateMerchant
+    updateMerchant,
+    qrSpending,
+    genQRCode
 } = require('../controllers/merchantController');
 
 const router = express.Router();
@@ -13,6 +15,8 @@ const router = express.Router();
 router.get('/', protect, getMerchant);
 router.post('/', protect, registerMerchant);
 router.patch('/', protect, updateMerchant);
+router.post('/qrSpending', protect, qrSpending);
+router.get('/qrcode', protect, genQRCode);
 
 router.get('/search', protect, searchMerchant);
 

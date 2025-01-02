@@ -6,6 +6,9 @@ const {logger} = require('../services/logger');
 const Member = require('../models/memberModel');
 const Merchant = require('../models/merchantModel');
 const Wallet = require('../models/walletModel');
+const Transaction = require('../models/transactionModel');
+
+const {processSpendingReward} = require('../controllers/commisionController');
 
 const searchMerchant = asyncHandler(async (req, res) => {
     const {field, term} = req.query;
@@ -130,6 +133,118 @@ const updateMerchant = asyncHandler(async (req, res) => {
     }
 });
 
+const qrSpending = asyncHandler(async (req, res) => {
+    const {spendingCode, amount} = req.body;
+
+    if (!spendingCode) {
+        res.status(400);
+        throw new Error('QR Spending Code is required');
+    } else if (!amount) {
+        res.status(400);
+        throw new Error('Amount is required');
+    }
+
+    if (!spendingCode.startsWith('spend://')) {
+        res.status(400);
+        throw new Error('QR code is not valid');
+    }
+
+    const senderMerchant = await Merchant.findOne({memberId: req.member._id}, {_id: 1, memberId: 1, spendingCode: 1});
+
+    const senderWallet = await Wallet.findOne({memberId: req.member._id});
+    if (!senderWallet) {
+        res.status(404);
+        throw new Error('Sender Wallet Not Found');
+    }
+
+    // Check if wallet balance is sufficient for the qr payment
+    if (senderWallet.balance < amount) {
+        res.status(402); // HTTP 402: Payment Required
+        throw new Error('Insufficient funds');
+    }
+
+    const recipientMerchant = await Merchant.findOne({spendingCode}, {_id: 1, memberId: 1, spendingCode: 1, cashbackRate: 1});
+    if (!recipientMerchant) {
+        res.status(404);
+        throw new Error('Merchant Not Found');
+    }
+
+    const recipientWallet = await Wallet.findOne({memberId: recipientMerchant.memberId});
+    if (!recipientWallet) {
+        res.status(404);
+        throw new Error('Recipient Not Found');
+    } else if (senderMerchant && spendingCode.trim() === senderMerchant.spendingCode) {
+        res.status(400);
+        throw new Error('Could not transfer to your own account');
+    }
+
+    const description = 'QR Payment';
+
+    const senderTransaction = await Transaction.create({
+        walletId: senderWallet._id,
+        systemType: 'HubWallet',
+        type: 'Debit',
+        description,
+        status: 'Success',
+        counterpartyWalletId: recipientWallet._id,
+        amount: amount
+    });
+
+    const recipientTransaction = await Transaction.create({
+        walletId: recipientWallet._id,
+        systemType: 'HubWallet',
+        type: 'Credit',
+        description,
+        status: 'Success',
+        counterpartyWalletId: senderWallet._id,
+        amount: amount
+    });
+
+    if (senderTransaction && recipientTransaction) {
+
+        logger.info(`Sender Balance: ${senderWallet.balance}, Transfer Amount: ${amount}`);
+        logger.info(`Recipient Balance: ${recipientWallet.balance}, Transer Amount: ${amount}`);
+
+        senderWallet.balance -= Number(amount);
+        await senderWallet.save();
+
+        recipientWallet.balance += Number(amount);
+        await recipientWallet.save();
+
+        logger.info(`New Sender Balance: ${senderWallet.balance}`);
+        logger.info(`New Recipient Balance: ${recipientWallet.balance}`);
+
+        // Process spending reward (Asynchronously)
+        setImmediate(() => processSpendingReward(senderWallet, req.member, recipientMerchant.cashbackRate, amount));
+
+        res.status(200).json({
+            balance: senderWallet.balance,
+            currency: senderWallet.currency
+        });
+    } else {
+        res.status(500);
+        throw new Error('Transfer failed, please try again later');
+    }
+});
+
+const genQRCode = asyncHandler(async (req, res) => {
+    // Find the merchant linked to the member
+    const merchant = await Merchant.findOne({memberId: req.member._id}, {_id: 0, spendingCode: 1});
+    if (!merchant) {
+        res.status(404);
+        throw new Error('Merchant Not Found');
+    }
+
+    try {
+        // Generates the QR code image from text
+        // const qrCodeBase64 = await qrcode.toDataURL(wallet.spendingCode);
+
+        res.status(200).json({qrCode: merchant.spendingCode});
+    } catch (error) {
+        res.status(500).json({message: 'Error generating QR code', error: error.message});
+    }
+});
+
 // Generate Payment Code
 const generateSpendingCode = () => {
     const length = 64;
@@ -137,4 +252,4 @@ const generateSpendingCode = () => {
     return randomString.replace(/\+/g, '0').replace(/\//g, '1'); // Replace unsafe characters to avoid issues
 };
 
-module.exports = {searchMerchant, getMerchant, registerMerchant, updateMerchant};
+module.exports = {searchMerchant, getMerchant, registerMerchant, updateMerchant, qrSpending, genQRCode};
