@@ -202,8 +202,11 @@ const registerMember = asyncHandler(async (req, res) => {
 });
 
 const loginMember = asyncHandler(async (req, res) => {
-    const {email, password, phone} = req.body;
-
+    let {email, password, phone} = req.body;
+    
+    if (email) {
+        email = email.toLowerCase();
+    }
     // Check user email/phone
     let member = null;
     if (email) {
@@ -219,7 +222,6 @@ const loginMember = asyncHandler(async (req, res) => {
         res.json({
             fullName: member.fullName,
             userName: member.userName,
-            email: member.mail,
             referralCode: member.referralCode,
             type: member.type,
             token: generateToken(member._id)
