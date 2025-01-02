@@ -72,7 +72,7 @@ const processSpendingReward = async (spenderWallet, member, cashbackRate, amount
     logger.info(`Processing Spending Rewards`);
 
     const spenderPercentages = cashbackRate * 50 / 100;
-    const spenderReward = (amount / 100) * spenderPercentages / 100;
+    const spenderReward = amount * spenderPercentages / 100;
 
     logger.info(`Amount : ${amount}, Cashback Rate : ${cashbackRate}, Spender Reward (Cash) : ${spenderReward}`);
     spenderWallet.points = Number(spenderWallet.points) + spenderReward;
