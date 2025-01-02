@@ -72,11 +72,10 @@ const processSpendingReward = async (spenderWallet, member, cashbackRate, amount
     logger.info(`Processing Spending Rewards`);
 
     const spenderPercentages = cashbackRate * 50 / 100;
-    const spenderRewardInCash = (amount / 100) * spenderPercentages / 100;
-    const spenderRewardInPoints = spenderRewardInCash * 100;
+    const spenderReward = (amount / 100) * spenderPercentages / 100;
 
-    logger.info(`Amount : ${amount}, Cashback Rate : ${cashbackRate}, Spender Reward (Cash) : ${spenderRewardInCash}`);
-    spenderWallet.points = Number(spenderWallet.points) + spenderRewardInPoints;
+    logger.info(`Amount : ${amount}, Cashback Rate : ${cashbackRate}, Spender Reward (Cash) : ${spenderReward}`);
+    spenderWallet.points = Number(spenderWallet.points) + spenderReward;
     await spenderWallet.save();
 
     await Transaction.create({
@@ -86,11 +85,11 @@ const processSpendingReward = async (spenderWallet, member, cashbackRate, amount
         description: 'Spending Rewards',
         status: 'Success',
         memberId: member._id,
-        amount: spenderRewardInPoints
+        amount: spenderReward
     });
 
     // Percentages for each level
-    const percentages = [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2];
+    const percentages = [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2]; // total up to 40%
     logger.info(percentages.length);
 
     let currentMember = member.referredBy;
