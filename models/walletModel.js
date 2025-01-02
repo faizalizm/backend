@@ -21,8 +21,8 @@ const walletSchema = new mongoose.Schema({
         type: String,
         default: null
     },
-    // Points
     
+    // Points
     points: {
         type: Number, // Using Number for calculations
         default: 0, // Default points is 0
