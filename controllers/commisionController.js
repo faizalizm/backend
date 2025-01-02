@@ -114,7 +114,7 @@ const processSpendingReward = async (spenderWallet, member, cashbackRate, amount
 
             // Calculate the commission for this level
             const percentage = percentages[level] ?? 0; // If percentage not specied, then 0 commission
-            const commission = (amount * cashbackRate * percentage) / 100;
+            const commission = amount * (cashbackRate / 100) * (percentage / 100);
 
             if (uplineMember.type !== 'VIP' && level < 3) {
                 logger.info(`Upline Member ${uplineMember.fullName} (Level ${level + 1}) missed on receiving ${percentage}% (RM ${(commission / 100).toFixed(2)})`);
