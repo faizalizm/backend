@@ -178,7 +178,7 @@ const qrSpending = asyncHandler(async (req, res) => {
         throw new Error('Could not transfer to your own account');
     }
 
-    const description = 'QR Payment';
+    const description = 'Merchant QR Payment';
 
     const senderTransaction = await Transaction.create({
         walletId: senderWallet._id,
@@ -229,17 +229,17 @@ const qrSpending = asyncHandler(async (req, res) => {
 
 const genQRCode = asyncHandler(async (req, res) => {
     // Find the merchant linked to the member
-    const merchant = await Merchant.findOne({memberId: req.member._id}, {_id: 0, spendingCode: 1});
+    const merchant = await Merchant.findOne({memberId: req.member._id}, {_id: 0, spendingCode: 1, cashbackRate: 1});
     if (!merchant) {
         res.status(404);
         throw new Error('Merchant Not Found');
     }
 
     try {
-        // Generates the QR code image from text
-        // const qrCodeBase64 = await qrcode.toDataURL(wallet.spendingCode);
-
-        res.status(200).json({qrCode: merchant.spendingCode});
+        res.status(200).json({
+            qrCode: merchant.spendingCode,
+            cashbackRate: merchant.cashbackRate
+        });
     } catch (error) {
         res.status(500).json({message: 'Error generating QR code', error: error.message});
     }

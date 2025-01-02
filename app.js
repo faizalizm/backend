@@ -98,6 +98,7 @@ app.use('/api/v1/member', require('./routes/memberRoutes'));
 app.use('/api/v1/merchant', require('./routes/merchantRoutes'));
 app.use('/api/v1/package', require('./routes/packageRoutes'));
 app.use('/api/v1/wallet', require('./routes/walletRoutes'));
+app.use('/api/v1/points', require('./routes/pointsRoutes'));
 
 app.use(errorHandler);
 
