@@ -58,7 +58,6 @@ const getWallet = asyncHandler(async (req, res) => {
         systemType: 1,
         type: 1,
         description: 1,
-        points: 1,
         status: 1,
         amount: 1,
         createdAt: 1,
@@ -69,6 +68,7 @@ const getWallet = asyncHandler(async (req, res) => {
 
     res.json({
         balance: wallet.balance,
+        points: wallet.points,
         currency: wallet.currency,
         transactions
     });
