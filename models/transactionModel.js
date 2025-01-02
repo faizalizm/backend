@@ -35,6 +35,7 @@ const transactionSchema = new mongoose.Schema({
             'VIP Payment',
             'VIP Registration Commission',
             'Spending Rewards',
+            'Spending Rewards Commision',
             'Redeem',
             'Cashback'
         ]
