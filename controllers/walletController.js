@@ -11,6 +11,7 @@ const Member = require('../models/memberModel');
 const Wallet = require('../models/walletModel');
 const Package = require('../models/packageModel');
 const Transaction = require('../models/transactionModel');
+const Merchant = require('../models/merchantModel');
 
 const getWallet = asyncHandler(async (req, res) => {
     // Find the wallet linked to the member
@@ -248,11 +249,33 @@ const withdrawWallet = asyncHandler(async (req, res) => {
 });
 
 const transferVerification = asyncHandler(async(req, res) => {
-    const {paymentCode, email, phone} = req.body;
+    const {paymentCode, spendingCode, email, phone} = req.body;
 
     let recipientWallet;
+    let merchant;
 
-    if (paymentCode) {
+    if (spendingCode) {
+        if (!spendingCode.startsWith('spend://')) {
+            res.status(400);
+            throw new Error('QR code is not valid');
+        }
+
+        merchant = await Merchant.findOne({spendingCode}, {_id: 0, memberId: 1, name: 1, cashbackRate: 1});
+        if (!merchant) {
+            res.status(404);
+            throw new Error('Merchant Not Found');
+        }
+
+        recipientWallet = await Wallet.findOne({memberId: merchant.memberId});
+
+        if (!recipientWallet) {
+            res.status(404);
+            throw new Error('Recipient Not Found');
+        } else if (recipientWallet.memberId === req.member._id) {
+            res.status(400);
+            throw new Error('Could not transfer to your own account');
+        }
+    } else if (paymentCode) {
         if (!paymentCode.startsWith('payment://')) {
             res.status(400);
             throw new Error('QR code is not valid');
@@ -282,7 +305,7 @@ const transferVerification = asyncHandler(async(req, res) => {
     }
 
     let recipient;
-    if (paymentCode) {
+    if (paymentCode || spendingCode) {
         recipient = await Member.findOne({_id: recipientWallet.memberId}, {fullName: 1, email: 1, phone: 1});
     } else if (email) {
         recipient = await Member.findOne({email}, {fullName: 1, email: 1, phone: 1});
@@ -293,6 +316,12 @@ const transferVerification = asyncHandler(async(req, res) => {
     if (!recipient) {
         res.status(404);
         throw new Error('Recipient Not Found');
+    } else if (spendingCode) {
+        res.status(200).json({
+            merchantLogo: merchant.logo,
+            merchantName: merchant.name,
+            cashbackRate: merchant.cashbackRate
+        });
     } else {
         res.status(200).json({
             memberFullName: recipient.fullName
