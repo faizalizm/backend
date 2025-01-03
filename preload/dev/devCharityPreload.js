@@ -2,9 +2,8 @@ const path = require('path');
 const fs = require('fs');
 const dotenv = require('dotenv').config({path: path.join(__dirname, '..', '..', '.env')});
 const colors = require('colors');
-
 const {connectDB} = require('../../services/mongodb');
-const Package = require('../../models/packageModel');
+const Charity = require('../../models/charityModel');
 
 // Connect to the database
 connectDB();
@@ -22,107 +21,47 @@ const encodeImageToBase64 = (filePath) => {
     }
 };
 
-const preloadPackage = async () => {
-    console.log('🚀 Starting package preload process...'.blue);
+const preloadCharity = async () => {
+    console.log('🚀 Starting charity preload process...'.blue);
     try {
-        const packages = [
+        const charity = [
             {
-                type: 'Topup',
-                name: 'HubWallet Cash Topup',
-                description: ['Add cash to your wallet to make payments and transfers'],
-                categoryCode: 'xvzexbil',
-                emailContent: 'You have successfully top-up your HubWallet Cash',
-                packageCharge: 0
+                picture: encodeImageToBase64('../palestine.jpg'),
+                name: 'Palestine: Give life-saving aid',
+                description: 'The people of Gaza have been paying the heaviest cost of war, deprived of basic human rights. Beyond Gaza, thousands of Palestine Refugee families in the region are living in poverty, not knowing where their next meal will come from',
+                category: [
+                    "Conflict",
+                    "Emergency"
+                ],
+                donationAmount: '25000',
+                donationCount: '5',
+                contributedAmount: '1000',
+                goal: 3000000, // rm 30k
+                status: 'Active'
             },
             {
-                type: 'VIP',
-                picture: encodeImageToBase64('../vip1.jpg'),
-                name: 'HUB GIFT PACK (MEN)',
-                description: [
-                    "1 Box of Hub Fragrance (5 Bottles) worth RM100.00",
-                    "1 bottle 35ML worth RM79.00",
-                    "1 T-Shirt",
-                    "1 Simcard S4S",
-                    "1 Prepaid card Mastercard from Mi-Pay",
-                    "1 Lucky Draw Ticket"
+                picture: encodeImageToBase64('../masjidnegerisabah.jpg'),
+                name: 'Masjid Negeri Sabah (Support Education Programs)',
+                description: 'Help empower the next generation by supporting educational initiatives aimed at providing better opportunities for underprivileged youth. Your contributions can make a lasting impact on their lives and our community.',
+                category: [
+                    "Education"
                 ],
-                price: '25000',
-                code: 'VIP1',
-                categoryCode: '5430n0yy',
-                emailContent: 'Thank you for purchasing HUB GIFT PACK (MEN), we wish you a pleasant journey in using RewardsHub to spend & earn',
-                packageCharge: 0
-            },
-            {
-                type: 'VIP',
-                picture: encodeImageToBase64('../vip2.jpg'),
-                name: 'HUB GIFT PACK (WOMEN)',
-                description: [
-                    "1 Box of Hub Fragrance (5 Bottles) worth RM100.00",
-                    "1 bottle 35ML worth RM79.00",
-                    "1 T-Shirt",
-                    "1 Simcard S4S",
-                    "1 Prepaid card Mastercard from Mi-Pay",
-                    "1 Lucky Draw Ticket"
-                ],
-                price: '25000',
-                code: 'VIP2',
-                categoryCode: 'xs88o64q',
-                emailContent: 'Thank you for purchasing HUB GIFT PACK (WOMEN), we wish you a pleasant journey in using RewardsHub to spend & earn',
-                packageCharge: 0
-            },
-            {
-                type: 'VIP',
-                picture: encodeImageToBase64('../vip3.jpg'),
-                name: 'HUB GIFT PACK (MEN) 2',
-                description: [
-                    "2 Bottles of perfume worth RM79.00 each",
-                    "1 bottle 10ML worth RM19.90",
-                    "1 T-Shirt",
-                    "1 Simcard S4S",
-                    "1 Prepaid card Mastercard from Mi-Pay",
-                    "1 Lucky Draw Ticket"
-                ],
-                price: '25000',
-                code: 'VIP3',
-                categoryCode: '2a4jkpbj',
-                emailContent: 'Thank you for purchasing HUB GIFT PACK (MEN) 2, we wish you a pleasant journey in using RewardsHub to spend & earn',
-                packageCharge: 0
-            },
-            {
-                type: 'VIP',
-                picture: encodeImageToBase64('../vip4.jpg'),
-                name: 'HUB GIFT PACK (WOMEN) 2',
-                description: [
-                    "2 Bottles of perfume worth RM79.00 each",
-                    "1 bottle 10ML worth RM19.90",
-                    "1 T-Shirt",
-                    "1 Simcard S4S",
-                    "1 Prepaid card Mastercard from Mi-Pay",
-                    "1 Lucky Draw Ticket"
-                ],
-                price: '25000',
-                code: 'VIP4',
-                categoryCode: 'l5o659nv',
-                emailContent: 'Thank you for purchasing HUB GIFT PACK (WOMEN) 2, we wish you a pleasant journey in using RewardsHub to spend & earn',
-                packageCharge: 0
+                donationAmount: '1000',
+                donationCount: '1',
+                contributedAmount: '100',
+                goal: 1000000, // rm 10k
+                status: 'Active'
             }
         ];
-        
-        // Loop through packages and add them to the database if they don't already exist
-        for (const packageData of packages) {
-            const existingPackage = await Package.findOne({name: packageData.name});
-            if (!existingPackage) {
-                const createdPackage = await Package.create(packageData);
-                console.log(`✅ Successfully created package: ${createdPackage.name}`);
-            } else {
-                console.log(`⚠️ Package already exists: ${existingPackage.name}`);
-            }
+        // Loop through charity and add them to the database
+        for (const charityData of charity) {
+            const createdCharity = await Charity.create(charityData);
         }
     } catch (error) {
-        console.error('❌ Error preloading packages:', error.message);
+        console.error('❌ Error preloading charity:', error.message);
     } finally {
         process.exit(); // Exit the script when done
     }
 };
 
-preloadPackage();
+preloadCharity();
