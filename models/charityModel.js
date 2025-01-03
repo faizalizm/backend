@@ -43,11 +43,11 @@ const charitySchema = new mongoose.Schema({
         default: 0, // Default is 0
         min: [0, 'Donation amount cannot be negative'] // Prevent negative value
     },
-    goal: {
+    goalAmount: {
         type: Number, // Using Number for calculations
-        required: [true, 'Donation amount is required'],
+        required: [true, 'Goal amount is required'],
         default: 0, // Default balance is 0
-        min: [0, 'Balance Cannot Be Negative'] // Prevent negative value
+        min: [0, 'Goal amount cannot be negative'] // Prevent negative value
     },
     status: {
         type: String,
