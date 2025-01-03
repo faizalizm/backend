@@ -190,6 +190,7 @@ const qrSpending = asyncHandler(async (req, res) => {
         amount: amount
     });
 
+    const receivingAmount = amount - (amount * recipientMerchant.cashbackRate / 100);
     const recipientTransaction = await Transaction.create({
         walletId: recipientWallet._id,
         systemType: 'HubWallet',
@@ -197,18 +198,18 @@ const qrSpending = asyncHandler(async (req, res) => {
         description,
         status: 'Success',
         counterpartyWalletId: senderWallet._id,
-        amount: amount
+        amount: receivingAmount
     });
 
     if (senderTransaction && recipientTransaction) {
 
         logger.info(`Sender Balance: ${senderWallet.balance}, Transfer Amount: ${amount}`);
-        logger.info(`Recipient Balance: ${recipientWallet.balance}, Transer Amount: ${amount}`);
+        logger.info(`Recipient Balance: ${recipientWallet.balance}, Cashback Rate : ${recipientMerchant.cashbackRate}, Receiving Amount: ${receivingAmount}`);
 
         senderWallet.balance -= Number(amount);
         await senderWallet.save();
 
-        recipientWallet.balance += Number(amount);
+        recipientWallet.balance += Number(receivingAmount);
         await recipientWallet.save();
 
         logger.info(`New Sender Balance: ${senderWallet.balance}`);

@@ -42,4 +42,70 @@ const getPoints = asyncHandler(async (req, res) => {
     });
 });
 
-module.exports = {getPoints};
+const redeemPoints = asyncHandler(async (req, res) => {
+    const {points} = req.body;
+
+    const minRedemptionAmount = 50;
+
+    if (!points) {
+        res.status(400);
+        throw new Error('Please specify points to redeem');
+    }
+
+    if (points <= 0) {
+        res.status(400);
+        throw new Error('Invalid value of points to redeem');
+    }
+
+    if (points < minRedemptionAmount) {
+        res.status(400);
+        throw new Error(`Points must be at least ${minRedemptionAmount} to redeem`);
+    }
+
+    // Find the wallet linked to the member
+    const wallet = await Wallet.findOne({memberId: req.member._id}, {_id: 1, balance: 1, points: 1});
+    if (!wallet) {
+        res.status(404);
+        throw new Error('Wallet Not Found');
+    }
+
+    logger.info(`Points Available : ${wallet.points}, Points to Convert : ${points}`);
+
+    // Check if wallet balance is sufficient for the withdrawal
+    if (wallet.points < points) {
+        res.status(402); // HTTP 402: Payment Required
+        throw new Error('Insufficient points to convert');
+    }
+
+    try {
+        const transaction = await Transaction.create({
+                        walletId: wallet._id,
+                        systemType: 'HubPoints',
+                        type: 'Debit',
+                        description: 'Points Redemption',
+                        status: 'Success',
+                        amount: points
+                });
+
+        if (!transaction) {
+            res.status(500);
+            throw new Error('Failed to create transaction');
+        }
+
+        wallet.points -= Number(points);
+        wallet.balance += Number(points);
+        await wallet.save();
+
+
+        res.status(200).json({
+            points: wallet.points
+        });
+    } catch (error) {
+        logger.error('Error processing withdrawal:', error);
+
+        res.status(500);
+        throw new Error('Withdrawal failed, please try again later');
+    }
+});
+
+module.exports = {getPoints, redeemPoints};
