@@ -78,7 +78,7 @@ const redeemPoints = asyncHandler(async (req, res) => {
     }
 
     try {
-        const transaction = await Transaction.create({
+        const pointsTransaction = await Transaction.create({
                         walletId: wallet._id,
                         systemType: 'HubPoints',
                         type: 'Debit',
@@ -87,7 +87,16 @@ const redeemPoints = asyncHandler(async (req, res) => {
                         amount: points
                 });
 
-        if (!transaction) {
+        const walletTransaction = await Transaction.create({
+                        walletId: wallet._id,
+                        systemType: 'HubWallet',
+                        type: 'Credit',
+                        description: 'Points Redemption',
+                        status: 'Success',
+                        amount: points
+                });
+
+        if (!pointsTransaction || !walletTransaction) {
             res.status(500);
             throw new Error('Failed to create transaction');
         }

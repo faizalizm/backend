@@ -230,17 +230,14 @@ const qrSpending = asyncHandler(async (req, res) => {
 
 const genQRCode = asyncHandler(async (req, res) => {
     // Find the merchant linked to the member
-    const merchant = await Merchant.findOne({memberId: req.member._id}, {_id: 0, spendingCode: 1, cashbackRate: 1});
+    const merchant = await Merchant.findOne({memberId: req.member._id}, {_id: 0, name: 1, spendingCode: 1, cashbackRate: 1});
     if (!merchant) {
         res.status(404);
         throw new Error('Merchant Not Found');
     }
 
     try {
-        res.status(200).json({
-            qrCode: merchant.spendingCode,
-            cashbackRate: merchant.cashbackRate
-        });
+        res.status(200).json(merchant);
     } catch (error) {
         res.status(500).json({message: 'Error generating QR code', error: error.message});
     }
