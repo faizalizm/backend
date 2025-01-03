@@ -55,6 +55,7 @@ const getWallet = asyncHandler(async (req, res) => {
             }
         ]
     }, {
+        _id: 0,
         systemType: 1,
         type: 1,
         description: 1,
