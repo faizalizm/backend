@@ -11,7 +11,12 @@ const getCharity = asyncHandler(async (req, res) => {
         throw new Error('No active charity found');
     }
 
-    res.json(charity);
+    const totalDonationAmount = charity.reduce((total, item) => total + item.donationAmount, 0);
+
+    res.status(200).json({
+        charities: charity,
+        totalDonationAmount
+    });
 });
 
 module.exports = {getCharity};

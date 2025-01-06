@@ -26,7 +26,7 @@ const getPackage = asyncHandler(async (req, res) => {
     );
 
     if (package.length > 0) {
-        res.json(package);
+        res.status(200).json(package);
     } else {
         res.status(404);
         throw new Error('No Package Available');

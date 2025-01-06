@@ -30,7 +30,7 @@ const registerMember = asyncHandler(async (req, res) => {
     // Check if member is already registered
     const memberExist = await Member.findOne({
         $or: [
-            {email: email}, // Check for existing email
+            {email: email.toLowerCase()}, // Check for existing email
             {phone: phone}  // Check for existing phone number
         ]
     });
@@ -203,7 +203,7 @@ const registerMember = asyncHandler(async (req, res) => {
 
 const loginMember = asyncHandler(async (req, res) => {
     let {email, password, phone} = req.body;
-    
+
     if (email) {
         email = email.toLowerCase();
     }
@@ -219,7 +219,7 @@ const loginMember = asyncHandler(async (req, res) => {
     }
 
     if (member && (await bcrypt.compare(password, member.password))) {
-        res.json({
+        res.status(200).json({
             fullName: member.fullName,
             userName: member.userName,
             referralCode: member.referralCode,
@@ -323,9 +323,6 @@ const deleteMember = asyncHandler(async (req, res) => {
     if (!lastOtp) {
         res.status(404);
         throw new Error('No OTP found for this email');
-    } else if (otp != lastOtp.otp) {
-        res.status(400);
-        throw new Error('OTP is invalid');
     }
 
     // Check OTP expiry
@@ -334,6 +331,11 @@ const deleteMember = asyncHandler(async (req, res) => {
     if (now > otpExpiry) {
         res.status(400);
         throw new Error('OTP has expired');
+    }
+
+    if (otp != lastOtp.otp) {
+        res.status(400);
+        throw new Error('OTP is invalid');
     }
 
     if (await bcrypt.compare(password, member.password)) {
@@ -352,6 +354,68 @@ const deleteMember = asyncHandler(async (req, res) => {
         res.status(400);
         throw new Error('Invalid credentials');
     }
+});
+
+const resetPassword = asyncHandler(async (req, res) => {
+    const {email, otp} = req.body;
+
+    if (!email || !otp) {
+        res.status(400);
+        throw new Error('Please provide email and OTP');
+    }
+
+    // Check user email
+    let member = await Member.findOne({email}, {phone: 1, email: 1, isDeleted: 1});
+    if (!member) {
+        res.status(404);
+        throw new Error('Member not found');
+    }
+
+    // Check if member is not deleted
+    if (member.isDeleted) {
+        res.status(400);
+        throw new Error('Member account is already deleted');
+    }
+
+    // Find from OTP list
+    const lastOtp = await Otp.findOne({email}).sort({createdAt: -1}); // Get the most recent OTP
+    if (!lastOtp) {
+        res.status(404);
+        throw new Error('No OTP found for this email');
+    }
+
+    // Check OTP expiry
+    const now = new Date();
+    const otpExpiry = new Date(lastOtp.otpExpiry);
+    if (now > otpExpiry) {
+        res.status(400);
+        throw new Error('OTP has expired, kindly request a new one');
+    }
+
+    if (otp !== lastOtp.otp) {
+        res.status(400);
+        throw new Error('OTP is invalid');
+    }
+
+    const charset = "0123456789abcdefghijklmnopqrstuvwxyz!@#$%&*ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    const passwordLength = 12;
+    let password = "";
+
+    for (var i = 0; i <= passwordLength; i++) {
+        var randomNumber = Math.floor(Math.random() * charset.length);
+        password += charset.substring(randomNumber, randomNumber + 1);
+    }
+    logger.info(`New Password : ${password}`);
+
+    // Password hashing
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    member.password = hashedPassword;
+    await member.save();
+
+    res.status(200).json({message: 'Password has been reset successfully'});
+
 });
 
 const getMember = asyncHandler(async (req, res) => {
@@ -707,4 +771,15 @@ const sendOtpEmail = async (recipientEmail, otp, minutesAfterExpiry, otpExpiry) 
 };
 
 
-module.exports = {registerMember, loginMember, getOtp, deleteMember, getMember, updateMember, inviteMember, getReferral, getVIPStatistic};
+module.exports = {
+    registerMember,
+    loginMember,
+    getOtp,
+    deleteMember,
+    resetPassword,
+    getMember,
+    updateMember,
+    inviteMember,
+    getReferral,
+    getVIPStatistic
+};

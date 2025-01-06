@@ -36,7 +36,7 @@ const getPoints = asyncHandler(async (req, res) => {
         shippingDetails: 1
     }).sort({createdAt: -1});
 
-    res.json({
+    res.status(200).json({
         points: wallet.points,
         transactions
     });
