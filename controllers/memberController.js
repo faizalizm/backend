@@ -333,7 +333,7 @@ const deleteMember = asyncHandler(async (req, res) => {
         throw new Error('OTP has expired');
     }
 
-    if (otp != lastOtp.otp) {
+    if (otp !== lastOtp.otp) {
         res.status(400);
         throw new Error('OTP is invalid');
     }
@@ -357,11 +357,11 @@ const deleteMember = asyncHandler(async (req, res) => {
 });
 
 const resetPassword = asyncHandler(async (req, res) => {
-    const {email, otp} = req.body;
+    const {email, password, otp} = req.body;
 
-    if (!email || !otp) {
+    if (!email || !password || !otp) {
         res.status(400);
-        throw new Error('Please provide email and OTP');
+        throw new Error('Please provide email, password and OTP');
     }
 
     // Check user email
@@ -397,15 +397,12 @@ const resetPassword = asyncHandler(async (req, res) => {
         throw new Error('OTP is invalid');
     }
 
-    const charset = "0123456789abcdefghijklmnopqrstuvwxyz!@#$%&*ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    const passwordLength = 12;
-    let password = "";
-
-    for (var i = 0; i <= passwordLength; i++) {
-        var randomNumber = Math.floor(Math.random() * charset.length);
-        password += charset.substring(randomNumber, randomNumber + 1);
+    // Validate password strength (min 8 characters, max 20 characters, include at least 1 uppercase and 1 number)
+    const passwordRegex = /^(?=.*[A-Z])(?=.*\d)[A-Za-z\d]{8,20}$/;
+    if (!passwordRegex.test(password)) {
+        res.status(400);
+        throw new Error('Password must be between 8 and 20 characters, and include at least one uppercase letter and one number');
     }
-    logger.info(`New Password : ${password}`);
 
     // Password hashing
     const salt = await bcrypt.genSalt(10);
