@@ -5,12 +5,14 @@ const asyncHandler = require('express-async-handler');
 const qrcode = require('qrcode');
 const fs = require('fs');
 const path = require('path');
-const nodemailer = require('nodemailer');
 
 const {logger} = require('../services/logger');
+const {sendMail} = require('../services/nodemailer');
+const {setTokenOnLogin} = require('../services/firebaseCloudMessage');
 
 const Member = require('../models/memberModel');
 const Wallet = require('../models/walletModel');
+const Otp = require('../models/otpModel');
 
 const registerMember = asyncHandler(async (req, res) => {
     const {fullName, email, password, phone, referredBy} = req.body;
@@ -29,7 +31,7 @@ const registerMember = asyncHandler(async (req, res) => {
     // Check if member is already registered
     const memberExist = await Member.findOne({
         $or: [
-            {email: email}, // Check for existing email
+            {email: email.toLowerCase()}, // Check for existing email
             {phone: phone}  // Check for existing phone number
         ]
     });
@@ -187,8 +189,9 @@ const registerMember = asyncHandler(async (req, res) => {
                 email: member.email,
                 phone: member.phone,
                 referralCode: member.referralCode,
-                referredBy: referrer ? referrer.referralCode : null,
-                token: generateToken(member._id)
+                referredBy: referrer ? referrer.referralCode : null
+//                token: generateToken(member._id, process.env.ACCESS_TOKEN_EXPIRY),
+//                refreshToken: generateToken(member._id, process.env.REFRESH_TOKEN_EXPIRY)
             });
         } else {
             res.status(400);
@@ -201,47 +204,291 @@ const registerMember = asyncHandler(async (req, res) => {
 });
 
 const loginMember = asyncHandler(async (req, res) => {
-    const {email, password, phone} = req.body;
+    let {type, email, password, phone, refreshToken, fcmToken} = req.body;
 
-    // Check user email/phone
-    let member = null;
-    if (email) {
-        member = await Member.findOne({email});
-    } else if (phone) {
-        member = await Member.findOne({phone});
-    } else {
+    try {
+        if (type === 'biometric') {
+            if (!refreshToken) {
+                res.status(400);
+                throw new Error('Refresh token is required');
+            }
+
+            const member = await Member.findOne({refreshToken});
+            if (!member) {
+                res.status(400);
+                throw new Error('Biometric authentication fail, please proceed with password login');
+            }
+
+            if (fcmToken) {
+                await setTokenOnLogin(member, fcmToken);
+            }
+
+            const refreshToken = generateToken(member._id, process.env.REFRESH_TOKEN_EXPIRY);
+            member.refreshToken = refreshToken;
+            await member.save();
+
+            res.status(200).json({
+                fullName: member.fullName,
+                userName: member.userName,
+                referralCode: member.referralCode,
+                type: member.type,
+                token: generateToken(member._id, process.env.ACCESS_TOKEN_EXPIRY),
+                refreshToken
+            });
+        } else {
+            if (email) {
+                email = email.toLowerCase();
+            }
+            // Check user email/phone
+            let member = null;
+            if (email) {
+                member = await Member.findOne({email});
+            } else if (phone) {
+                member = await Member.findOne({phone});
+            } else {
+                res.status(400);
+                throw new Error('Email or phone required');
+            }
+
+            if (!member) {
+                res.status(400);
+                throw new Error('Invalid credentials');
+            }
+
+            if (await bcrypt.compare(password, member.password)) {
+
+                if (fcmToken) {
+                    await setTokenOnLogin(member, fcmToken);
+                }
+
+                const refreshToken = generateToken(member._id, process.env.REFRESH_TOKEN_EXPIRY);
+                member.refreshToken = refreshToken;
+                await member.save();
+
+                res.status(200).json({
+                    fullName: member.fullName,
+                    userName: member.userName,
+                    referralCode: member.referralCode,
+                    type: member.type,
+                    token: generateToken(member._id, process.env.ACCESS_TOKEN_EXPIRY),
+                    refreshToken
+                });
+            } else {
+                res.status(400);
+                throw new Error('Invalid credentials');
+            }
+        }
+    } catch (error) {
+        res.status(500);
+        throw error;
+    }
+});
+
+const getOtp = asyncHandler(async (req, res) => {
+    const {email, phone} = req.query;
+
+    if (!email && !phone) {
         res.status(400);
-        throw new Error('Email or phone required');
+        throw new Error('Email or phone is required');
     }
 
-    if (member && (await bcrypt.compare(password, member.password))) {
-        res.json({
-            fullName: member.fullName,
-            email: member.mail,
-            referralCode: member.referralCode,
-            type: member.type,
-            token: generateToken(member._id)
+    try {
+        const query = {};
+        if (email) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (email && !emailRegex.test(email)) {
+                res.status(400);
+                throw new Error('Invalid email format');
+            }
+
+            query.email = email;
+        }
+        if (phone)
+            query.phone = phone;
+
+        const lastOtp = await Otp.findOne(query).sort({createdAt: -1}); // Get the most recent OTP
+
+        if (lastOtp) {
+            const now = new Date();
+            const lastSent = new Date(lastOtp.createdAt);
+            const interval = 2 * 60 * 1000; // 2 minutes in milliseconds
+
+            // Calculate the time difference between the current time and the last OTP sent time
+            const timeDifference = now - lastSent;
+
+            // If the time difference is less than the interval, calculate the remaining time
+            if (timeDifference < interval) {
+                const remainingTime = interval - timeDifference;
+                const remainingSeconds = Math.floor(remainingTime / 1000); // Convert to seconds
+
+                res.status(429);
+                throw new Error(`Please wait ${remainingSeconds} second${remainingSeconds !== 1 ? 's' : ''} before requesting another OTP`);
+            }
+        }
+
+        // Generate OTP
+        const minutesAfterExpiry = 5;
+        const otp = Math.floor(100000 + Math.random() * 900000); // 6-digit OTP
+        const otpExpiry = new Date(Date.now() + minutesAfterExpiry * 60 * 1000); // 5 minutes from now
+        logger.info(`Email : ${email}, OTP : ${otp}, Expiry : ${otpExpiry}`);
+
+        // Save OTP
+        const createdOtp = await Otp.create({email, phone, otp, otpExpiry});
+
+        if (email) {
+            await sendOtpEmail(email, otp, minutesAfterExpiry, otpExpiry);
+        }
+
+        res.status(200).json({
+//            otp, // Remove in production for security reasons
+            expiry: otpExpiry
         });
+    } catch (error) {
+        res.status(500);
+        throw error;
+    }
+});
+
+const deleteMember = asyncHandler(async (req, res) => {
+    const {email, password, otp} = req.body;
+
+    if (!email || !password || !otp) {
+        res.status(400);
+        throw new Error('Please provide all details');
+    }
+
+    // Check user email
+    let member = await Member.findOne({email}, {password: 1, phone: 1, email: 1, isDeleted: 1});
+    if (!member) {
+        res.status(404);
+        throw new Error('Member not found');
+    }
+
+    // Check if member is not deleted
+    if (member.isDeleted) {
+        res.status(400);
+        throw new Error('Member account is already deleted');
+    }
+
+    // Find from OTP list
+    const lastOtp = await Otp.findOne({email}).sort({createdAt: -1}); // Get the most recent OTP
+    if (!lastOtp) {
+        res.status(404);
+        throw new Error('No OTP found for this email');
+    }
+
+    // Check OTP expiry
+    const now = new Date();
+    const otpExpiry = new Date(lastOtp.otpExpiry);
+    if (now > otpExpiry) {
+        res.status(400);
+        throw new Error('OTP has expired');
+    }
+
+    if (otp !== lastOtp.otp) {
+        res.status(400);
+        throw new Error('OTP is invalid');
+    }
+
+    if (await bcrypt.compare(password, member.password)) {
+        // Mark as deleted
+        member.fullName = null;
+        member.userName = null;
+        member.email = null;
+        member.phone = null;
+        member.withdrawalDetails = null;
+        member.shippingDetails = null;
+        member.isDeleted = true;
+        await member.save();
+
+        res.status(200).json({});
     } else {
         res.status(400);
         throw new Error('Invalid credentials');
     }
 });
 
-const getMember = asyncHandler(async (req, res) => {
-    // Exclude fields from the response
-    const {referrals, _id, createdAt, updatedAt, __v, ...memberData} = req.member.toObject();
+const resetPassword = asyncHandler(async (req, res) => {
+    try {
+        const {email, password, otp} = req.body;
 
-    if (!req.member.referredBy) {
-        memberData.referredBy = 'Not Set';
-    } else {
-        const referrer = await Member.findOne({_id: req.member.referredBy});
-        if (referrer) {
-            memberData.referredBy = referrer.fullName;
+        if (!email || !password || !otp) {
+            res.status(400);
+            throw new Error('Please provide email, password and OTP');
         }
-    }
 
-    res.status(200).json(memberData);
+        // Check user email
+        let member = await Member.findOne({email}, {phone: 1, email: 1, isDeleted: 1});
+        if (!member) {
+            res.status(404);
+            throw new Error('Member not found');
+        }
+
+        // Check if member is not deleted
+        if (member.isDeleted) {
+            res.status(400);
+            throw new Error('Member account is already deleted');
+        }
+
+        // Find from OTP list
+        const lastOtp = await Otp.findOne({email}).sort({createdAt: -1}); // Get the most recent OTP
+        if (!lastOtp) {
+            res.status(404);
+            throw new Error('No OTP found for this email');
+        }
+
+        // Check OTP expiry
+        const now = new Date();
+        const otpExpiry = new Date(lastOtp.otpExpiry);
+        if (now > otpExpiry) {
+            res.status(400);
+            throw new Error('OTP has expired, kindly request a new one');
+        }
+
+        if (otp !== lastOtp.otp) {
+            res.status(400);
+            throw new Error('OTP is invalid');
+        }
+
+        // Validate password strength (min 8 characters, max 20 characters, include at least 1 uppercase and 1 number)
+        const passwordRegex = /^(?=.*[A-Z])(?=.*\d)[A-Za-z\d]{8,20}$/;
+        if (!passwordRegex.test(password)) {
+            res.status(400);
+            throw new Error('Password must be between 8 and 20 characters, and include at least one uppercase letter and one number');
+        }
+
+        // Password hashing
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
+
+        member.password = hashedPassword;
+        await member.save();
+
+        res.status(200).json({message: 'Password has been reset successfully'});
+    } catch (error) {
+        res.status(500);
+        throw error;
+    }
+});
+
+const getMember = asyncHandler(async (req, res) => {
+    try {
+        const member = await Member.findById(req.member._id, {_id: 0, password: 0, referrals: 0, __v: 0}).lean();
+
+        if (!req.member.referredBy) {
+            member.referredBy = 'Not Set';
+        } else {
+            const referrer = await Member.findOne({_id: req.member.referredBy}, {_id: 0, fullName: 1});
+            if (referrer) {
+                member.referredBy = referrer.fullName;
+            }
+        }
+
+        res.status(200).json(member);
+    } catch (error) {
+        res.status(500);
+        throw error;
+    }
 });
 
 const updateMember = asyncHandler(async (req, res) => {
@@ -479,20 +726,25 @@ const getReferral = asyncHandler(async (req, res) => {
 });
 
 const getVIPStatistic = asyncHandler(async (req, res) => {
-    const totalLiveVIP = await getTotalLiveVIP();
-    const recentVip = await getRecentVIP();
+    try {
+        const totalLiveVIP = await getTotalLiveVIP();
+        const recentVip = await getRecentVIP();
 
-    res.status(200).json({
-        totalLiveVIP,
-        recentVip
-    });
+        res.status(200).json({
+            totalLiveVIP,
+            recentVip
+        });
+    } catch (error) {
+        res.status(500);
+        throw error;
+    }
 });
 
 const getTotalLiveVIP = async () => {
     try {
         return await Member.countDocuments({type: 'VIP'});
     } catch (error) {
-        logger.error('Error getting total Live VIP : ', error.message);
+        logger.error(`Error getting total Live VIP : ${error.message}`);
         return null;
     }
 };
@@ -518,15 +770,15 @@ const getRecentVIP = async () => {
                 .limit(10);
 
     } catch (error) {
-        logger.error('Error getting recent VIP : ', error.message);
+        logger.error(`Error getting recent VIP : ${error.message}`);
         return null;
     }
 };
 
 // Generate JWT Token
-const generateToken = (id) => {
+const generateToken = (id, expiry) => {
     return jwt.sign({id}, process.env.JWT_SECRET, {
-        expiresIn: '1d'
+        expiresIn: expiry
     });
 };
 
@@ -561,38 +813,36 @@ const sendInvitationEmail = async (recipientEmail, referralCode, playStoreInvita
     htmlContent = htmlContent.replace('${referralCode}', referralCode);
     htmlContent = htmlContent.replace('${playStoreInvitation}', playStoreInvitation);
 
-    console.table({
-        senderEmail: process.env.EMAIL_NOREPLY,
-        recipientEmail});
+    let mailId = 'invitation';
+    let subject = 'Explore Rewards Hub!';
+    await sendMail(mailId, subject, htmlContent, recipientEmail);
+};
 
-    try {
-        const transporter = nodemailer.createTransport({
-            service: 'gmail', // Email service (e.g., Outlook, SendGrid)
-            auth: {
-                user: process.env.EMAIL_NOREPLY,
-                pass: process.env.EMAIL_PWD
-            }
-        });
+const sendOtpEmail = async (recipientEmail, otp, minutesAfterExpiry, otpExpiry) => {
+    // Fetch and modify HTML template
+    const htmlTemplatePath = path.join(__dirname, '..', 'email', 'otp.html');
+    let htmlContent = fs.readFileSync(htmlTemplatePath, 'utf-8');
 
-        // Email options
-        await transporter.sendMail({
-            from: process.env.EMAIL_NOREPLY,
-            to: recipientEmail,
-            replyTo: process.env.EMAIL_ADMIN,
-            subject: 'Explore Rewards Hub!',
-            html: htmlContent,
-            messageId: `invite-${Date.now()}@gmail.com`, // The `Message-ID` ensures a new thread
-            headers: {
-                'X-Priority': '1', // High priority
-                'X-Mailer': 'Nodemailer' // Email client info
-            }
-        });
+    // Replace placeholders with actual data
+    htmlContent = htmlContent.replace('${otp}', otp);
+    htmlContent = htmlContent.replace('${minutesAfterExpiry}', minutesAfterExpiry);
+//    htmlContent = htmlContent.replace('${otpExpiry}', otpExpiry);
 
-        logger.info('Admin notification sent successfully');
-    } catch (error) {
-        logger.error('Failed to send admin notification:', error);
-    }
+    let mailId = 'otp';
+    let subject = 'Reward Hub OTP';
+    await sendMail(mailId, subject, htmlContent, recipientEmail);
 };
 
 
-module.exports = {registerMember, loginMember, getMember, updateMember, inviteMember, getReferral, getVIPStatistic};
+module.exports = {
+    registerMember,
+    loginMember,
+    getOtp,
+    deleteMember,
+    resetPassword,
+    getMember,
+    updateMember,
+    inviteMember,
+    getReferral,
+    getVIPStatistic
+};

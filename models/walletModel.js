@@ -20,6 +20,13 @@ const walletSchema = new mongoose.Schema({
     paymentCode: {
         type: String,
         default: null
+    },
+    
+    // Points
+    points: {
+        type: Number, // Using Number for calculations
+        default: 0, // Default points is 0
+        min: [0, 'Points Cannot Be Negative'] // Prevent negative points
     }
 }, {
     timestamps: true

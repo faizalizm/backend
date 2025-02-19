@@ -71,3 +71,7 @@ node_modules/
 # Dependency directories
 firebase-archive/
 /nbproject/private/
+
+# Sensitive files
+firebase-service-account.json
+

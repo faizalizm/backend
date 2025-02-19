@@ -16,7 +16,7 @@ const transactionSchema = new mongoose.Schema({
     },
     type: {
         type: String,
-        required: [true, 'Please add type'],
+        required: [true, 'Please specify type'],
         enum: [
             'Credit', // Added
             'Debit', // Deducted
@@ -25,23 +25,25 @@ const transactionSchema = new mongoose.Schema({
     },
     description: {
         type: String,
-        required: [true, 'Please add description'],
+        required: [true, 'Please specify description'],
         enum: [
             'Top Up',
             'Withdrawal',
             'Transfer via Phone',
             'Transfer via Email',
             'QR Payment',
+            'Merchant QR Payment',
             'VIP Payment',
             'VIP Registration Commission',
             'Spending Rewards',
-            'Redeem',
+            'Spending Rewards Commision',
+            'Points Redemption',
             'Cashback'
         ]
     },
     status: {
         type: String,
-        required: [true, 'Please add status'],
+        required: [true, 'Please specify status'],
         enum: ['In Progress', 'Success', 'Failed', 'Expired']
     },
     memberId: {
@@ -68,8 +70,16 @@ const transactionSchema = new mongoose.Schema({
     },
     amount: {
         type: Number,
-        required: [true, 'Please specify the amount'],
+        required: [true, 'Please specify amount'],
         min: [0, 'Amount must be a positive number']
+    },
+    charitableContribution: {
+        type: Number,
+        min: [0, 'Charitable contribution must be a positive number']
+    },
+    merchantDiscountRate: {
+        type: Number,
+        min: [0, 'Merchant discount rate must be a positive number']
     },
     withdrawalDetails: {
         type: {
@@ -82,6 +92,10 @@ const transactionSchema = new mongoose.Schema({
         bankDetails: {
             type: bankDetailsSchema
         }
+    },
+    shippingStatus: {// Shipping Status - For txn involve Shipping
+        type: String,
+        enum: ['Preparing', 'Shipped', 'Delivered']
     },
     shippingDetails: {// Shipping Details - For txn involve Shipping
         type: shippingDetailsSchema

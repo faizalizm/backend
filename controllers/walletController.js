@@ -2,15 +2,17 @@ const asyncHandler = require('express-async-handler');
 const moment = require('moment-timezone');
 const fs = require('fs');
 const path = require('path');
-const nodemailer = require('nodemailer');
 
 const {logger} = require('../services/logger');
+const {sendMail} = require('../services/nodemailer');
 const {getCategoryToyyib, createBillToyyib, getBillTransactionsToyyib} = require('../services/toyyibpay');
+const {buildTransferMessage, buildQRPaymentMessage, sendMessage} = require('../services/firebaseCloudMessage');
 
 const Member = require('../models/memberModel');
 const Wallet = require('../models/walletModel');
 const Package = require('../models/packageModel');
 const Transaction = require('../models/transactionModel');
+const Merchant = require('../models/merchantModel');
 
 const getWallet = asyncHandler(async (req, res) => {
     // Find the wallet linked to the member
@@ -54,6 +56,7 @@ const getWallet = asyncHandler(async (req, res) => {
             }
         ]
     }, {
+        _id: 0,
         systemType: 1,
         type: 1,
         description: 1,
@@ -61,11 +64,13 @@ const getWallet = asyncHandler(async (req, res) => {
         amount: 1,
         createdAt: 1,
         withdrawalDetails: 1,
+        shippingStatus: 1,
         shippingDetails: 1
     }).sort({createdAt: -1});
 
-    res.json({
+    res.status(200).json({
         balance: wallet.balance,
+        points: wallet.points,
         currency: wallet.currency,
         transactions
     });
@@ -88,14 +93,17 @@ const topupWallet = asyncHandler(async (req, res) => {
         throw new Error('Payment channel not supported');
     }
 
-    const package = await Package.findOne({type: 'Topup'}).select('name categoryCode emailContent packageCharge -_id');
+    const package = await Package.findOne(
+            {type: 'Topup'},
+            {name: 1, code: 1, categoryCode: 1, packageCharge: 1, emailContent: 1}
+    );
     if (!package) {
         res.status(500);
         throw new Error('Package not found');
     }
 
     // Find the wallet linked to the member
-    const wallet = await Wallet.findOne({memberId: req.member._id}).select('-paymentCode -createdAt -updatedAt -__v');
+    const wallet = await Wallet.findOne({memberId: req.member._id});
     if (!wallet) {
         res.status(500);
         throw new Error('Wallet Not Found');
@@ -130,7 +138,7 @@ const topupWallet = asyncHandler(async (req, res) => {
         await Transaction.findByIdAndUpdate(transaction._id, {billCode}, {new : true});
 
         // Query to ToyyibPay
-        getBillTransactionsToyyib(req.member._id, wallet, amount, billCode, "Top Up");
+        getBillTransactionsToyyib(req.member._id, wallet._id, amount, billCode, "Top Up");
 
         // Return the response to the client
         res.status(200).json({paymentUrl, paymentExpiry: billExpiryDate});
@@ -162,7 +170,7 @@ const withdrawWallet = asyncHandler(async (req, res) => {
     }
 
     // Find the wallet linked to the member
-    const wallet = await Wallet.findOne({memberId: req.member._id});
+    const wallet = await Wallet.findOne({memberId: req.member._id}, {paymentCode: 0});
     if (!wallet) {
         res.status(404);
         throw new Error('Wallet Not Found');
@@ -236,7 +244,7 @@ const withdrawWallet = asyncHandler(async (req, res) => {
             currency: wallet.currency
         });
     } catch (error) {
-        logger.error('Error processing withdrawal:', error);
+        logger.error(`Error processing withdrawal : ${error.message}`);
 
         res.status(500);
         throw new Error('Withdrawal failed, please try again later');
@@ -244,28 +252,79 @@ const withdrawWallet = asyncHandler(async (req, res) => {
 });
 
 const transferVerification = asyncHandler(async(req, res) => {
-    const {email, phone} = req.body;
+    const {paymentCode, spendingCode, email, phone} = req.body;
 
-    if (!email && !phone) {
-        res.status(400);
-        throw new Error('Email or phone is required for transfer');
-    }
+    let recipientWallet;
+    let merchant;
 
-    if (email && email.trim() === req.member.email) {
-        res.status(400);
-        throw new Error('Could not transfer to your own account');
+    if (spendingCode) {
+        if (!spendingCode.startsWith('spend://')) {
+            res.status(400);
+            throw new Error('QR code is not valid');
+        }
+
+        merchant = await Merchant.findOne({spendingCode}, {_id: 0, memberId: 1, name: 1, cashbackRate: 1});
+        if (!merchant) {
+            res.status(404);
+            throw new Error('Merchant Not Found');
+        }
+
+        recipientWallet = await Wallet.findOne({memberId: merchant.memberId});
+
+        if (!recipientWallet) {
+            res.status(404);
+            throw new Error('Recipient Not Found');
+        } else if (recipientWallet.memberId === req.member._id) {
+            res.status(400);
+            throw new Error('Could not transfer to your own account');
+        }
+    } else if (paymentCode) {
+        if (!paymentCode.startsWith('payment://')) {
+            res.status(400);
+            throw new Error('QR code is not valid');
+        }
+
+        recipientWallet = await Wallet.findOne({paymentCode});
+
+        if (!recipientWallet) {
+            res.status(404);
+            throw new Error('Recipient Not Found');
+        } else if (recipientWallet.memberId === req.member._id) {
+            res.status(400);
+            throw new Error('Could not transfer to your own account');
+        }
+    } else {
+        // Case 2: Sending via entered value (email or phone)
+        if (!email && !phone) {
+            res.status(400).json({error: 'Email or phone is required for transfer'});
+            return;
+        }
+
+        if ((email && email.trim() === req.member.email)
+                || phone && phone.trim() === req.member.phone) {
+            res.status(400);
+            throw new Error('Could not transfer to your own account');
+        }
     }
 
     let recipient;
-    if (phone) {
-        recipient = await Member.findOne({phone});
+    if (paymentCode || spendingCode) {
+        recipient = await Member.findOne({_id: recipientWallet.memberId}, {fullName: 1, email: 1, phone: 1});
     } else if (email) {
-        recipient = await Member.findOne({email});
+        recipient = await Member.findOne({email}, {fullName: 1, email: 1, phone: 1});
+    } else if (phone) {
+        recipient = await Member.findOne({phone}, {fullName: 1, email: 1, phone: 1});
     }
 
     if (!recipient) {
         res.status(404);
         throw new Error('Recipient Not Found');
+    } else if (spendingCode) {
+        res.status(200).json({
+            merchantLogo: merchant.logo,
+            merchantName: merchant.name,
+            cashbackRate: merchant.cashbackRate
+        });
     } else {
         res.status(200).json({
             memberFullName: recipient.fullName
@@ -295,10 +354,10 @@ const transferWallet = asyncHandler(async (req, res) => {
     let recipient;
     if (phone) {
         description = 'Transfer via Phone';
-        recipient = await Member.findOne({phone});
+        recipient = await Member.findOne({phone}, {fullName: 1, email: 1, phone: 1});
     } else if (email) {
         description = 'Transfer via Email';
-        recipient = await Member.findOne({email});
+        recipient = await Member.findOne({email}, {fullName: 1, email: 1, phone: 1});
     }
 
     if (!recipient) {
@@ -358,6 +417,9 @@ const transferWallet = asyncHandler(async (req, res) => {
         logger.info(`New Sender Balance: ${senderWallet.balance}`);
         logger.info(`New Recipient Balance: ${recipientWallet.balance}`);
 
+        const message = buildTransferMessage(amount);
+        setImmediate(() => sendMessage(message, recipient));
+
         res.status(200).json({
             balance: senderWallet.balance,
             currency: senderWallet.currency
@@ -379,14 +441,11 @@ const qrPayment = asyncHandler(async (req, res) => {
         throw new Error('Amount is required');
     }
 
-    const recipientWallet = await Wallet.findOne({paymentCode});
-    if (!recipientWallet) {
-        res.status(404);
-        throw new Error('Recipient Not Found');
-    } else if (paymentCode.trim() === req.member.paymentCode) {
+    if (!paymentCode.startsWith('payment://')) {
         res.status(400);
-        throw new Error('Could not transfer to your own account');
+        throw new Error('QR code is not valid');
     }
+
 
     const senderWallet = await Wallet.findOne({memberId: req.member._id});
     if (!senderWallet) {
@@ -398,6 +457,21 @@ const qrPayment = asyncHandler(async (req, res) => {
     if (senderWallet.balance < amount) {
         res.status(402); // HTTP 402: Payment Required
         throw new Error('Insufficient funds');
+    }
+
+    const recipientWallet = await Wallet.findOne({paymentCode});
+    if (!recipientWallet) {
+        res.status(404);
+        throw new Error('Recipient Not Found');
+    } else if (paymentCode.trim() === senderWallet.paymentCode) {
+        res.status(400);
+        throw new Error('Could not transfer to your own account');
+    }
+
+    const recipient = await Member.findOne({_id: recipientWallet._id}, {fullName: 1, email: 1, phone: 1});
+    if (!recipient) {
+        res.status(404);
+        throw new Error('Recipient Not Found');
     }
 
     const description = 'QR Payment';
@@ -435,6 +509,9 @@ const qrPayment = asyncHandler(async (req, res) => {
 
         logger.info(`New Sender Balance: ${senderWallet.balance}`);
         logger.info(`New Recipient Balance: ${recipientWallet.balance}`);
+
+        const message = buildQRPaymentMessage(amount);
+        setImmediate(() => sendMessage(message, recipient));
 
         res.status(200).json({
             balance: senderWallet.balance,
@@ -490,32 +567,9 @@ const sendWithdrawalNotification = async (member, transaction) => {
             .replace('${member.phone}', member.phone)
             .replace('${amount}', `RM ${(transaction.amount / 100).toFixed(2)}`);
 
-
-    try {
-        const transporter = nodemailer.createTransport({
-            service: 'gmail',
-            auth: {
-                user: process.env.EMAIL_NOREPLY,
-                pass: process.env.EMAIL_PWD
-            }
-        });
-
-        await transporter.sendMail({
-            from: process.env.EMAIL_NOREPLY,
-            to: process.env.EMAIL_ADMIN,
-            subject: 'RewardsHub Cash Withdrawal Request',
-            html: htmlContent,
-            messageId: `invite-${Date.now()}@gmail.com`,
-            headers: {
-                'X-Priority': '1',
-                'X-Mailer': 'Nodemailer'
-            }
-        });
-
-        logger.info('Admin notification sent successfully');
-    } catch (error) {
-        logger.error('Failed to send admin notification:', error);
-    }
+    let mailId = 'withdrawal';
+    let subject = 'Reward Hub Cash Withdrawal Request';
+    await sendMail(mailId, subject, htmlContent);
 };
 
 module.exports = {getWallet, topupWallet, withdrawWallet, transferVerification, transferWallet, qrPayment, genQRCode};

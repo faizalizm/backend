@@ -1,12 +1,16 @@
+const path = require('path');
 const crypto = require('crypto');
 const cors = require('cors');
 const morgan = require('morgan');
 const express = require('express');
+const compression = require('compression');
+const helmet = require('helmet');
 const colors = require('colors');
 //const {v4: uuidv4} = require('uuid');
 
 const errorHandler = require('./middleware/errorMiddleware');
 const {connectDB} = require('./services/mongodb');
+const {connectFirebase} = require('./services/firebaseCloudMessage');
 const {logger, trimBase64} = require('./services/logger');
 
 const swaggerUI = require('swagger-ui-express');
@@ -15,14 +19,26 @@ const swaggerSpec = require('./swagger/swagger');
 // ------ Database Connection
 connectDB();
 
+// ------ Firebase Connection
+connectFirebase();
+
 // ------ Middleware
 console.log("Current Date and Time:", new Date());
 console.log("Local Time:", new Date().toLocaleString());
 
 const app = express();
+
+app.set('view engine', 'pug');
+app.set('views', path.join(__dirname, 'views'));
+
+app.use(express.static(path.join(__dirname, 'public')));
+
 app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({extended: false}));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+app.use(helmet()); // apply security headers
+app.use(compression()); // apply response compression
 
 app.use((req, res, next) => {
     req.requestId = crypto.randomBytes(4).toString('hex').toUpperCase(); // 8-character ID
@@ -77,11 +93,23 @@ const responseFormat = (tokens, req, res) => {
 app.use(morgan(requestFormat, {immediate: true, stream: process.stdout}));  // Log requests immediately
 app.use(morgan(responseFormat, {stream: process.stdout}));  // Log responses after completion
 
-// ------ Routes
+// ------ View Routes
+app.get('/', (req, res) => {
+    res.status(200).render('base');
+});
+app.get('/account/delete', (req, res) => {
+    res.status(200).render('deleteAccount');
+});
+
+// ------ API Routes
 //app.use('/', swaggerUI.serve, swaggerUI.setup(swaggerSpec));
 app.use('/api/v1/member', require('./routes/memberRoutes'));
+app.use('/api/v1/merchant', require('./routes/merchantRoutes'));
 app.use('/api/v1/package', require('./routes/packageRoutes'));
 app.use('/api/v1/wallet', require('./routes/walletRoutes'));
+app.use('/api/v1/points', require('./routes/pointsRoutes'));
+app.use('/api/v1/charity', require('./routes/charityRoutes'));
+
 
 app.use(errorHandler);
 

@@ -1,8 +1,10 @@
 const asyncHandler = require('express-async-handler');
 const moment = require('moment-timezone');
+const fs = require('fs');
+const path = require('path');
 
-const axiosInstance = require('../services/axios');
 const {logger} = require('../services/logger');
+const {sendMail} = require('../services/nodemailer');
 const {getCategoryToyyib, createBillToyyib, getBillTransactionsToyyib} = require('../services/toyyibpay');
 
 const Package = require('../models/packageModel');
@@ -17,10 +19,13 @@ const getPackage = asyncHandler(async (req, res) => {
         throw new Error('Member is already a VIP');
     }
 
-    const package = await Package.find({type: 'VIP'}).select('-categoryCode -packageCharge -emailContent -_id -createdAt -updatedAt -__v');
+    const package = await Package.find(
+            {type: 'VIP'},
+            {_id: 0, picture: 1, type: 1, name: 1, description: 1, price: 1, code: 1}
+    );
 
     if (package.length > 0) {
-        res.json(package);
+        res.status(200).json(package);
     } else {
         res.status(404);
         throw new Error('No Package Available');
@@ -28,7 +33,7 @@ const getPackage = asyncHandler(async (req, res) => {
 });
 
 const purchasePackage = asyncHandler(async (req, res) => {
-    const {code, paymentChannel} = req.body;
+    const {code, paymentChannel, shippingDetails} = req.body;
 
     if (!paymentChannel) { // To determine payment method
         res.status(400);
@@ -43,14 +48,20 @@ const purchasePackage = asyncHandler(async (req, res) => {
         throw new Error('Member is already a VIP');
     }
 
-    const package = await Package.findOne({code, type: 'VIP'});
+    const package = await Package.findOne(
+            {code, type: 'VIP'},
+            {name: 1, price: 1, categoryCode: 1, packageCharge: 1, emailContent: 1}
+    );
     if (!package) {
         res.status(404);
         throw new Error('Package Not Found');
     }
 
     // Find the wallet linked to the member
-    const wallet = await Wallet.findOne({memberId: req.member._id});
+    const wallet = await Wallet.findOne(
+            {memberId: req.member._id},
+            {paymentCode: 0}
+    );
     if (!wallet) {
         res.status(404);
         throw new Error('Wallet Not Found');
@@ -82,12 +93,17 @@ const purchasePackage = asyncHandler(async (req, res) => {
             description: 'VIP Payment',
             status: 'Success',
             packageCode: code,
-            amount: package.price
+            amount: package.price,
+            ...(shippingDetails && {shippingStatus: 'Preparing'}),
+            ...(shippingDetails && {shippingDetails})
         });
 
         // Process VIP Referral Commission
         processVIPCommision(req.member, package.price);
 
+        if (shippingDetails) {
+            setImmediate(() => sendShippingNotification(transaction));
+        }
         res.status(200).json({
             message: 'Package purchased successfully. You have upgraded to VIP!',
             remainingBalance: wallet.balance,
@@ -109,7 +125,9 @@ const purchasePackage = asyncHandler(async (req, res) => {
                 description: 'VIP Payment',
                 status: 'In Progress',
                 packageCode: code,
-                amount: package.price
+                amount: package.price,
+                ...(shippingDetails && {shippingStatus: 'Preparing'}),
+                ...(shippingDetails && {shippingDetails})
             });
 
             if (!transaction) {
@@ -125,14 +143,14 @@ const purchasePackage = asyncHandler(async (req, res) => {
             await Transaction.findByIdAndUpdate(transaction._id, {billCode}, {new : true});
 
             // Query to ToyyibPay
-            getBillTransactionsToyyib(req.member._id, wallet, package.price, billCode, "VIP Payment");
+            getBillTransactionsToyyib(req.member._id, wallet._id, package.price, billCode, "VIP Payment");
 
             // Return the response to the client
             res.status(200).json({paymentUrl, paymentExpiry: billExpiryDate});
 
         } catch (error) {
             res.status(500);
-            logger.info(error.stack);
+            logger.error(`Error processing VIP Payment : ${error.message}`);
             throw new Error('VIP payment failed, please try again later');
         }
 
@@ -147,5 +165,26 @@ const purchasePackage = asyncHandler(async (req, res) => {
 const purchaseCallbackPackage = asyncHandler(async (req, res) => {
     res.status(200).json({message: 'OK'});
 });
+
+const sendShippingNotification = async (transaction) => {
+    // Fetch and modify HTML template
+    const htmlTemplatePath = path.join(__dirname, '..', 'email', 'packageShipping.html');
+    let htmlContent = fs.readFileSync(htmlTemplatePath, 'utf-8');
+
+    htmlContent = htmlContent.replace('${packageCode}', `${transaction.packageCode}`);
+    htmlContent = htmlContent.replace('${phone}', `${transaction.shippingDetails.phone}`);
+    htmlContent = htmlContent.replace('${addressLine1}', `${transaction.shippingDetails.addressLine1}`);
+    htmlContent = htmlContent.replace('${addressLine2}', `${transaction.shippingDetails.addressLine2 || ''}`);
+    htmlContent = htmlContent.replace('${addressLine3}', `${transaction.shippingDetails.addressLine3 || ''}`);
+    htmlContent = htmlContent.replace('${city}', `${transaction.shippingDetails.city}`);
+    htmlContent = htmlContent.replace('${state}', `${transaction.shippingDetails.state || ''}`);
+    htmlContent = htmlContent.replace('${postCode}', `${transaction.shippingDetails.postCode}`);
+    htmlContent = htmlContent.replace('${country}', `${transaction.shippingDetails.country}`);
+
+
+    let mailId = 'shipping';
+    let subject = 'Reward Hub Shipping Notification';
+    await sendMail(mailId, subject, htmlContent);
+};
 
 module.exports = {getPackage, purchasePackage, purchaseCallbackPackage};

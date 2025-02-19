@@ -6,7 +6,6 @@ const shippingDetailsSchema = require('./shippingDetailsSchema');
 const memberSchema = new mongoose.Schema({
     profilePicture: {
         type: String,
-        default: null,
         validate: {
             validator: function (value) {
                 // Ensure the string is a valid Base64 image format
@@ -20,24 +19,27 @@ const memberSchema = new mongoose.Schema({
     },
     fullName: {
         type: String,
-        required: [true, 'Please add your name']
+        required: [true, 'Please specify name']
     },
-    username: {
+    userName: {
         type: String
     },
     email: {
         type: String,
-        required: [true, 'Please add your email'],
+        required: [true, 'Please specify email'],
         unique: true // Prevent register email twice
     },
     password: {
         type: String,
-        required: [true, 'Please add your password']
+        required: [true, 'Please specify password']
     },
     phone: {
         type: String,
-        required: [true, 'Please add your phone'],
+        required: [true, 'Please specify phone'],
         unique: true // Prevent register phone twice
+    },
+    refreshToken: {
+        type: String
     },
     referredBy: {
         type: mongoose.Schema.Types.ObjectId,
@@ -87,8 +89,7 @@ const memberSchema = new mongoose.Schema({
         enum: ['User', 'VIP'] // Restrict to allowed values
     },
     vipAt: {
-        type: Date,
-        default: null
+        type: Date
     },
     // Bank Details
     withdrawalDetails: {
@@ -102,6 +103,9 @@ const memberSchema = new mongoose.Schema({
     // Shipping Details
     shippingDetails: {
         type: shippingDetailsSchema
+    },
+    isDeleted: {
+        type: Boolean
     }
 }, {
     timestamps: true
