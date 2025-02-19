@@ -223,8 +223,8 @@ const loginMember = asyncHandler(async (req, res) => {
                 await setTokenOnLogin(member, fcmToken);
             }
 
-            const refreshToken = generateToken(member._id, process.env.REFRESH_TOKEN_EXPIRY);
-            member.refreshToken = refreshToken;
+            const newRefreshToken = generateToken(member._id, process.env.REFRESH_TOKEN_EXPIRY);
+            member.refreshToken = newRefreshToken;
             await member.save();
 
             res.status(200).json({
@@ -233,7 +233,7 @@ const loginMember = asyncHandler(async (req, res) => {
                 referralCode: member.referralCode,
                 type: member.type,
                 token: generateToken(member._id, process.env.ACCESS_TOKEN_EXPIRY),
-                refreshToken
+                refreshToken: newRefreshToken
             });
         } else {
             if (email) {
@@ -261,8 +261,8 @@ const loginMember = asyncHandler(async (req, res) => {
                     await setTokenOnLogin(member, fcmToken);
                 }
 
-                const refreshToken = generateToken(member._id, process.env.REFRESH_TOKEN_EXPIRY);
-                member.refreshToken = refreshToken;
+                const newRefreshToken = generateToken(member._id, process.env.REFRESH_TOKEN_EXPIRY);
+                member.refreshToken = newRefreshToken;
                 await member.save();
 
                 res.status(200).json({
@@ -271,7 +271,7 @@ const loginMember = asyncHandler(async (req, res) => {
                     referralCode: member.referralCode,
                     type: member.type,
                     token: generateToken(member._id, process.env.ACCESS_TOKEN_EXPIRY),
-                    refreshToken
+                    refreshToken: newRefreshToken
                 });
             } else {
                 res.status(400);
