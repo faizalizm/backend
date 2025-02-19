@@ -73,6 +73,14 @@ const transactionSchema = new mongoose.Schema({
         required: [true, 'Please specify amount'],
         min: [0, 'Amount must be a positive number']
     },
+    charitableContribution: {
+        type: Number,
+        min: [0, 'Charitable contribution must be a positive number']
+    },
+    merchantDiscountRate: {
+        type: Number,
+        min: [0, 'Merchant discount rate must be a positive number']
+    },
     withdrawalDetails: {
         type: {
             type: String,

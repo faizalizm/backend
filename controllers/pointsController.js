@@ -110,7 +110,7 @@ const redeemPoints = asyncHandler(async (req, res) => {
             points: wallet.points
         });
     } catch (error) {
-        logger.error('Error processing withdrawal:', error);
+        logger.error(`Error processing withdrawal : ${error.message}`);
 
         res.status(500);
         throw new Error('Withdrawal failed, please try again later');

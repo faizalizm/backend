@@ -1,4 +1,5 @@
 const {logger} = require('../services/logger');
+const {buildSpendingRewardMessage, buildVIPCommisionMessage, sendMessage} = require('../services/firebaseCloudMessage');
 
 const Member = require('../models/memberModel');
 const Wallet = require('../models/walletModel');
@@ -54,6 +55,9 @@ const processVIPCommision = async (member, amount) => {
                         amount: commission
                     });
 
+                    const message = buildVIPCommisionMessage(commission);
+                    setImmediate(() => sendMessage(message, uplineMember));
+
                     logger.info(`Upline Member ${uplineMember.fullName} (Level ${level + 1}) received ${percentage}% (RM ${(commission / 100).toFixed(2)})`);
                 }
             }
@@ -72,9 +76,15 @@ const processSpendingReward = async (spenderWallet, member, cashbackRate, amount
     logger.info(`Processing Spending Rewards`);
 
     const spenderPercentages = cashbackRate * 50 / 100;
-    const spenderReward = amount * spenderPercentages / 100;
+    const charitablePercentages = cashbackRate * 50 / 100;
+    const mdrPercentages = cashbackRate * 50 / 100;
 
-    logger.info(`Amount : ${amount}, Cashback Rate : ${cashbackRate}, Spender Reward (Cash) : ${spenderReward}`);
+    const spenderReward = amount * spenderPercentages / 100;
+    const charitableContribution = amount * charitablePercentages / 100;
+    const merchantDiscountRate = amount * mdrPercentages / 100;
+
+    logger.info(`Amount : ${amount}, Cashback Rate : ${cashbackRate}`);
+    logger.info(`Spender Cashback : ${spenderReward}, Charitable Contribution : ${charitableContribution}, MDR : ${merchantDiscountRate}`);
     spenderWallet.points = Number(spenderWallet.points) + spenderReward;
     await spenderWallet.save();
 
@@ -85,8 +95,12 @@ const processSpendingReward = async (spenderWallet, member, cashbackRate, amount
         description: 'Spending Rewards',
         status: 'Success',
         memberId: member._id,
-        amount: spenderReward
+        amount: spenderReward,
+        charitableContribution,
+        merchantDiscountRate
     });
+    
+    // todo : update master charity
 
     // Percentages for each level
     const percentages = [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2]; // total up to 40%
@@ -135,6 +149,9 @@ const processSpendingReward = async (spenderWallet, member, cashbackRate, amount
                         memberId: member._id,
                         amount: commission
                     });
+
+                    const message = buildSpendingRewardMessage(commission);
+                    setImmediate(() => sendMessage(message, uplineMember));
 
                     logger.info(`Upline Member ${uplineMember.fullName} (Level ${level + 1}) received ${percentage}% (RM ${(commission / 100).toFixed(2)})`);
                 }

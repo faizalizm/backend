@@ -10,6 +10,7 @@ const colors = require('colors');
 
 const errorHandler = require('./middleware/errorMiddleware');
 const {connectDB} = require('./services/mongodb');
+const {connectFirebase} = require('./services/firebaseCloudMessage');
 const {logger, trimBase64} = require('./services/logger');
 
 const swaggerUI = require('swagger-ui-express');
@@ -17,6 +18,9 @@ const swaggerSpec = require('./swagger/swagger');
 
 // ------ Database Connection
 connectDB();
+
+// ------ Firebase Connection
+connectFirebase();
 
 // ------ Middleware
 console.log("Current Date and Time:", new Date());

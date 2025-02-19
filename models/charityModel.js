@@ -1,31 +1,6 @@
 const mongoose = require('mongoose');
-const charitySchema = new mongoose.Schema({
-    picture: {
-        type: String,
-        default: null,
-        validate: {
-            validator: function (value) {
-                // Ensure the string is a valid Base64 image format (basic validation)
-                return (
-                        value === null ||
-                        /^data:image\/(jpg|jpeg|png);base64,/.test(value)
-                        );
-            },
-            message: 'Invalid Base64 Image Format.'
-        }
-    },
-    name: {
-        type: String,
-        required: [true, 'Please specify charity name']
-    },
-    description: {
-        type: String,
-        required: [true, 'Please specify charity description']
-    },
-    category: {
-        type: [String],
-        required: [true, 'Please specify category']
-    },
+
+const masterCharitySchema = new mongoose.Schema({
     donationAmount: {
         type: Number, // Using Number for calculations
         required: [true, 'Please specify donation amount'],
@@ -42,20 +17,9 @@ const charitySchema = new mongoose.Schema({
         type: Number, // Using Number for calculations
         default: 0, // Default is 0
         min: [0, 'Donation amount cannot be negative'] // Prevent negative value
-    },
-    goalAmount: {
-        type: Number, // Using Number for calculations
-        required: [true, 'Goal amount is required'],
-        default: 0, // Default balance is 0
-        min: [0, 'Goal amount cannot be negative'] // Prevent negative value
-    },
-    status: {
-        type: String,
-        enum: ['Active', 'Inactive'],
-        default: 'Active'
     }
 }, {
     timestamps: true
 });
 
-module.exports = mongoose.model('Charity', charitySchema);
+module.exports = mongoose.model('MasterCharity', masterCharitySchema);

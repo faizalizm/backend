@@ -6,6 +6,7 @@ const path = require('path');
 const {logger} = require('../services/logger');
 const {sendMail} = require('../services/nodemailer');
 const {getCategoryToyyib, createBillToyyib, getBillTransactionsToyyib} = require('../services/toyyibpay');
+const {buildTransferMessage, buildQRPaymentMessage, sendMessage} = require('../services/firebaseCloudMessage');
 
 const Member = require('../models/memberModel');
 const Wallet = require('../models/walletModel');
@@ -243,7 +244,7 @@ const withdrawWallet = asyncHandler(async (req, res) => {
             currency: wallet.currency
         });
     } catch (error) {
-        logger.error('Error processing withdrawal:', error);
+        logger.error(`Error processing withdrawal : ${error.message}`);
 
         res.status(500);
         throw new Error('Withdrawal failed, please try again later');
@@ -416,6 +417,9 @@ const transferWallet = asyncHandler(async (req, res) => {
         logger.info(`New Sender Balance: ${senderWallet.balance}`);
         logger.info(`New Recipient Balance: ${recipientWallet.balance}`);
 
+        const message = buildTransferMessage(amount);
+        setImmediate(() => sendMessage(message, recipient));
+
         res.status(200).json({
             balance: senderWallet.balance,
             currency: senderWallet.currency
@@ -464,6 +468,12 @@ const qrPayment = asyncHandler(async (req, res) => {
         throw new Error('Could not transfer to your own account');
     }
 
+    const recipient = await Member.findOne({_id: recipientWallet._id}, {fullName: 1, email: 1, phone: 1});
+    if (!recipient) {
+        res.status(404);
+        throw new Error('Recipient Not Found');
+    }
+
     const description = 'QR Payment';
 
     const senderTransaction = await Transaction.create({
@@ -499,6 +509,9 @@ const qrPayment = asyncHandler(async (req, res) => {
 
         logger.info(`New Sender Balance: ${senderWallet.balance}`);
         logger.info(`New Recipient Balance: ${recipientWallet.balance}`);
+
+        const message = buildQRPaymentMessage(amount);
+        setImmediate(() => sendMessage(message, recipient));
 
         res.status(200).json({
             balance: senderWallet.balance,

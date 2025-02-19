@@ -3,7 +3,6 @@ const moment = require('moment-timezone');
 const fs = require('fs');
 const path = require('path');
 
-const axiosInstance = require('../services/axios');
 const {logger} = require('../services/logger');
 const {sendMail} = require('../services/nodemailer');
 const {getCategoryToyyib, createBillToyyib, getBillTransactionsToyyib} = require('../services/toyyibpay');
@@ -151,7 +150,7 @@ const purchasePackage = asyncHandler(async (req, res) => {
 
         } catch (error) {
             res.status(500);
-            logger.info(error.stack);
+            logger.error(`Error processing VIP Payment : ${error.message}`);
             throw new Error('VIP payment failed, please try again later');
         }
 

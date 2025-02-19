@@ -8,6 +8,7 @@ const path = require('path');
 
 const {logger} = require('../services/logger');
 const {sendMail} = require('../services/nodemailer');
+const {setTokenOnLogin} = require('../services/firebaseCloudMessage');
 
 const Member = require('../models/memberModel');
 const Wallet = require('../models/walletModel');
@@ -188,8 +189,9 @@ const registerMember = asyncHandler(async (req, res) => {
                 email: member.email,
                 phone: member.phone,
                 referralCode: member.referralCode,
-                referredBy: referrer ? referrer.referralCode : null,
-                token: generateToken(member._id)
+                referredBy: referrer ? referrer.referralCode : null
+//                token: generateToken(member._id, process.env.ACCESS_TOKEN_EXPIRY),
+//                refreshToken: generateToken(member._id, process.env.REFRESH_TOKEN_EXPIRY)
             });
         } else {
             res.status(400);
@@ -202,33 +204,83 @@ const registerMember = asyncHandler(async (req, res) => {
 });
 
 const loginMember = asyncHandler(async (req, res) => {
-    let {email, password, phone} = req.body;
+    let {type, email, password, phone, refreshToken, fcmToken} = req.body;
 
-    if (email) {
-        email = email.toLowerCase();
-    }
-    // Check user email/phone
-    let member = null;
-    if (email) {
-        member = await Member.findOne({email});
-    } else if (phone) {
-        member = await Member.findOne({phone});
-    } else {
-        res.status(400);
-        throw new Error('Email or phone required');
-    }
+    try {
+        if (type === 'biometric') {
+            if (!refreshToken) {
+                res.status(400);
+                throw new Error('Refresh token is required');
+            }
 
-    if (member && (await bcrypt.compare(password, member.password))) {
-        res.status(200).json({
-            fullName: member.fullName,
-            userName: member.userName,
-            referralCode: member.referralCode,
-            type: member.type,
-            token: generateToken(member._id)
-        });
-    } else {
-        res.status(400);
-        throw new Error('Invalid credentials');
+            const member = await Member.findOne({refreshToken});
+            if (!member) {
+                res.status(400);
+                throw new Error('Biometric authentication fail, please proceed with password login');
+            }
+
+            if (fcmToken) {
+                await setTokenOnLogin(member, fcmToken);
+            }
+
+            const refreshToken = generateToken(member._id, process.env.REFRESH_TOKEN_EXPIRY);
+            member.refreshToken = refreshToken;
+            await member.save();
+
+            res.status(200).json({
+                fullName: member.fullName,
+                userName: member.userName,
+                referralCode: member.referralCode,
+                type: member.type,
+                token: generateToken(member._id, process.env.ACCESS_TOKEN_EXPIRY),
+                refreshToken
+            });
+        } else {
+            if (email) {
+                email = email.toLowerCase();
+            }
+            // Check user email/phone
+            let member = null;
+            if (email) {
+                member = await Member.findOne({email});
+            } else if (phone) {
+                member = await Member.findOne({phone});
+            } else {
+                res.status(400);
+                throw new Error('Email or phone required');
+            }
+
+            if (!member) {
+                res.status(400);
+                throw new Error('Invalid credentials');
+            }
+
+            if (await bcrypt.compare(password, member.password)) {
+
+                if (fcmToken) {
+                    await setTokenOnLogin(member, fcmToken);
+                }
+
+                const refreshToken = generateToken(member._id, process.env.REFRESH_TOKEN_EXPIRY);
+                member.refreshToken = refreshToken;
+                await member.save();
+
+                res.status(200).json({
+                    fullName: member.fullName,
+                    userName: member.userName,
+                    referralCode: member.referralCode,
+                    type: member.type,
+                    token: generateToken(member._id, process.env.ACCESS_TOKEN_EXPIRY),
+                    refreshToken
+                });
+            } else {
+                res.status(400);
+                throw new Error('Invalid credentials');
+            }
+        }
+    } catch (error) {
+        res.status(500);
+        throw error;
     }
 });
 
@@ -357,77 +409,86 @@ const deleteMember = asyncHandler(async (req, res) => {
 });
 
 const resetPassword = asyncHandler(async (req, res) => {
-    const {email, password, otp} = req.body;
+    try {
+        const {email, password, otp} = req.body;
 
-    if (!email || !password || !otp) {
-        res.status(400);
-        throw new Error('Please provide email, password and OTP');
+        if (!email || !password || !otp) {
+            res.status(400);
+            throw new Error('Please provide email, password and OTP');
+        }
+
+        // Check user email
+        let member = await Member.findOne({email}, {phone: 1, email: 1, isDeleted: 1});
+        if (!member) {
+            res.status(404);
+            throw new Error('Member not found');
+        }
+
+        // Check if member is not deleted
+        if (member.isDeleted) {
+            res.status(400);
+            throw new Error('Member account is already deleted');
+        }
+
+        // Find from OTP list
+        const lastOtp = await Otp.findOne({email}).sort({createdAt: -1}); // Get the most recent OTP
+        if (!lastOtp) {
+            res.status(404);
+            throw new Error('No OTP found for this email');
+        }
+
+        // Check OTP expiry
+        const now = new Date();
+        const otpExpiry = new Date(lastOtp.otpExpiry);
+        if (now > otpExpiry) {
+            res.status(400);
+            throw new Error('OTP has expired, kindly request a new one');
+        }
+
+        if (otp !== lastOtp.otp) {
+            res.status(400);
+            throw new Error('OTP is invalid');
+        }
+
+        // Validate password strength (min 8 characters, max 20 characters, include at least 1 uppercase and 1 number)
+        const passwordRegex = /^(?=.*[A-Z])(?=.*\d)[A-Za-z\d]{8,20}$/;
+        if (!passwordRegex.test(password)) {
+            res.status(400);
+            throw new Error('Password must be between 8 and 20 characters, and include at least one uppercase letter and one number');
+        }
+
+        // Password hashing
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
+
+        member.password = hashedPassword;
+        await member.save();
+
+        res.status(200).json({message: 'Password has been reset successfully'});
+    } catch (error) {
+        res.status(500);
+        throw error;
     }
-
-    // Check user email
-    let member = await Member.findOne({email}, {phone: 1, email: 1, isDeleted: 1});
-    if (!member) {
-        res.status(404);
-        throw new Error('Member not found');
-    }
-
-    // Check if member is not deleted
-    if (member.isDeleted) {
-        res.status(400);
-        throw new Error('Member account is already deleted');
-    }
-
-    // Find from OTP list
-    const lastOtp = await Otp.findOne({email}).sort({createdAt: -1}); // Get the most recent OTP
-    if (!lastOtp) {
-        res.status(404);
-        throw new Error('No OTP found for this email');
-    }
-
-    // Check OTP expiry
-    const now = new Date();
-    const otpExpiry = new Date(lastOtp.otpExpiry);
-    if (now > otpExpiry) {
-        res.status(400);
-        throw new Error('OTP has expired, kindly request a new one');
-    }
-
-    if (otp !== lastOtp.otp) {
-        res.status(400);
-        throw new Error('OTP is invalid');
-    }
-
-    // Validate password strength (min 8 characters, max 20 characters, include at least 1 uppercase and 1 number)
-    const passwordRegex = /^(?=.*[A-Z])(?=.*\d)[A-Za-z\d]{8,20}$/;
-    if (!passwordRegex.test(password)) {
-        res.status(400);
-        throw new Error('Password must be between 8 and 20 characters, and include at least one uppercase letter and one number');
-    }
-
-    // Password hashing
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
-    member.password = hashedPassword;
-    await member.save();
-
-    res.status(200).json({message: 'Password has been reset successfully'});
-
 });
 
 const getMember = asyncHandler(async (req, res) => {
-    const member = await Member.findById(req.member._id, {_id: 0, password: 0, referrals: 0, __v: 0}).lean();
+    try {
+        const member = await Member.findById(req.member._id, {_id: 0, password: 0, referrals: 0, __v: 0}).lean();
 
-    if (!req.member.referredBy) {
-        member.referredBy = 'Not Set';
-    } else {
-        const referrer = await Member.findOne({_id: req.member.referredBy}, {_id: 0, fullName: 1});
-        if (referrer) {
-            member.referredBy = referrer.fullName;
+        if (!req.member.referredBy) {
+            member.referredBy = 'Not Set';
+        } else {
+            const referrer = await Member.findOne({_id: req.member.referredBy}, {_id: 0, fullName: 1});
+            if (referrer) {
+                member.referredBy = referrer.fullName;
+            }
         }
-    }
 
-    res.status(200).json(member);
+        res.status(200).json(member);
+    } catch (error) {
+        res.status(500);
+        throw error;
+    }
 });
 
 const updateMember = asyncHandler(async (req, res) => {
@@ -665,20 +726,25 @@ const getReferral = asyncHandler(async (req, res) => {
 });
 
 const getVIPStatistic = asyncHandler(async (req, res) => {
-    const totalLiveVIP = await getTotalLiveVIP();
-    const recentVip = await getRecentVIP();
+    try {
+        const totalLiveVIP = await getTotalLiveVIP();
+        const recentVip = await getRecentVIP();
 
-    res.status(200).json({
-        totalLiveVIP,
-        recentVip
-    });
+        res.status(200).json({
+            totalLiveVIP,
+            recentVip
+        });
+    } catch (error) {
+        res.status(500);
+        throw error;
+    }
 });
 
 const getTotalLiveVIP = async () => {
     try {
         return await Member.countDocuments({type: 'VIP'});
     } catch (error) {
-        logger.error('Error getting total Live VIP : ', error.message);
+        logger.error(`Error getting total Live VIP : ${error.message}`);
         return null;
     }
 };
@@ -704,15 +770,15 @@ const getRecentVIP = async () => {
                 .limit(10);
 
     } catch (error) {
-        logger.error('Error getting recent VIP : ', error.message);
+        logger.error(`Error getting recent VIP : ${error.message}`);
         return null;
     }
 };
 
 // Generate JWT Token
-const generateToken = (id) => {
+const generateToken = (id, expiry) => {
     return jwt.sign({id}, process.env.JWT_SECRET, {
-        expiresIn: '1d'
+        expiresIn: expiry
     });
 };
 
