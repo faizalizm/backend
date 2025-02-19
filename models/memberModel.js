@@ -38,6 +38,9 @@ const memberSchema = new mongoose.Schema({
         required: [true, 'Please specify phone'],
         unique: true // Prevent register phone twice
     },
+    refreshToken: {
+        type: String
+    },
     referredBy: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Member',
