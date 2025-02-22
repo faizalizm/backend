@@ -133,7 +133,6 @@ const processSpendingReward = async (spenderWallet, member, cashbackRate, amount
             const percentage = percentages[level] ?? 0; // If percentage not specied, then 0 commission
             const commission = amount * (cashbackRate / 100) * (percentage / 100);
 
-            logger.info(commission / 100 < 0.01);
             if (commission / 100 <= 0.01) {
                 logger.info(`Commision too small to distribute to ${uplineMember.fullName} (Level ${level + 1})`);
                 continue;
