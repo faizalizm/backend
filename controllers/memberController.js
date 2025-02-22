@@ -214,6 +214,9 @@ const loginMember = asyncHandler(async (req, res) => {
             if (!member) {
                 res.status(400);
                 throw new Error('Biometric authentication fail, please proceed with password login');
+            } else if (member.email != email) {
+                res.status(400);
+                throw new Error('Email changed, kindly relogin to enable biometric');
             }
 
             if (fcmToken) {
