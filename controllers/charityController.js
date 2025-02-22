@@ -2,7 +2,7 @@ const asyncHandler = require('express-async-handler');
 
 const {logger} = require('../services/logger');
 
-//const Charity = require('../models/charityModel');
+const Charity = require('../models/charityModel');
 const MasterCharity = require('../models/masterCharityModel');
 
 //const getCharity = asyncHandler(async (req, res) => {
