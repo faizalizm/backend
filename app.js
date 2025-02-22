@@ -6,7 +6,6 @@ const express = require('express');
 const compression = require('compression');
 const helmet = require('helmet');
 const colors = require('colors');
-//const {v4: uuidv4} = require('uuid');
 
 const errorHandler = require('./middleware/errorMiddleware');
 const {connectDB} = require('./services/mongodb');
@@ -69,7 +68,7 @@ const requestFormat = (tokens, req, res) => {
     const params = JSON.stringify(req.params);
     const query = JSON.stringify(req.query);
 
-    return `${colors.bold(`[REQUEST ID: ${requestId}]`)} ${colors.cyan(method)} ${colors.green(url)} | Timestamp: ${colors.yellow(timestamp)} | IP ${colors.magenta(ip)} | Body: ${colors.yellow(body)} | Params: ${colors.magenta(params)} | Query: ${colors.blue(query)}`;
+    return `${colors.yellow(timestamp)} | [REQUEST ID: ${requestId}] | ${colors.cyan(method)} ${colors.cyan(url)} | IP ${colors.magenta(ip)} | Body: ${colors.green(body)} | Params: ${colors.green(params)} | Query: ${colors.green(query)}`;
 };
 
 const responseFormat = (tokens, req, res) => {
@@ -84,9 +83,9 @@ const responseFormat = (tokens, req, res) => {
     }
     const status = tokens.status(req, res);
     const contentLength = tokens.res(req, res, 'content-length') || '0';
-    const responseTime = tokens['response-time'](req, res);
+    const responseTime = Math.trunc(tokens['response-time'](req, res));
 
-    return `${colors.bold(`[RESPONSE ID: ${requestId}]`)} ${colors.cyan(method)} ${colors.green(url)} | Timestamp: ${colors.yellow(timestamp)} | IP ${colors.magenta(ip)} | HTTP ${colors.green(status)} | ${colors.yellow(contentLength + ' B')} | ${colors.red(responseTime)} ms | Body: ${colors.yellow(body)}`;
+    return `${colors.yellow(timestamp)} | [RESPONSE ID: ${requestId}] | ${colors.cyan(method)} ${colors.cyan(url)} | IP ${colors.magenta(ip)} | HTTP ${colors.green(status)} | ${colors.yellow(contentLength + ' B')} | ${colors.red(responseTime)} ms | Body: ${colors.green(body)}`;
 };
 
 // Use morgan with fixed formats

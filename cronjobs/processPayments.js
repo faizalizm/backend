@@ -12,6 +12,7 @@ const Transaction = require('../models/transactionModel');
 const Member = require('../models/memberModel');
 
 const {processVIPCommision} = require('../controllers/commisionController');
+const {sendShippingNotification} = require('../controllers/packageController');
 
 const {TOYYIB_URL, TOYYIB_SECRET, TOYYIB_CALLBACK_URL, IP} = process.env;
 
@@ -42,7 +43,7 @@ const processVIPPayment = async (memberId, amount, transaction) => {
     logger.info(`⭐ Member ${member.fullName} upgraded to VIP`);
 
     if (transaction.shippingDetails) {
-      setImmediate(() => sendShippingNotification(transaction));
+      sendShippingNotification(transaction);
     }
     
     // Process VIP Referral Commission

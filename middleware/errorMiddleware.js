@@ -6,7 +6,7 @@ const errorHandler = (err, req, res, next) => {
     logger.error(err.stack);
 
     const errorResponse = {
-        message: `[ID: ${req.requestId}] ${err.message}`,
+        message: `[ID: ${req.requestId}] ${err.message}`
     };
 
     // Include stack only in development

@@ -55,8 +55,9 @@ const processVIPCommision = async (member, amount) => {
                         amount: commission
                     });
 
+                    // Send FCM
                     const message = buildVIPCommisionMessage(commission);
-                    setImmediate(() => sendMessage(message, uplineMember));
+                    sendMessage(message, uplineMember);
 
                     logger.info(`Upline Member ${uplineMember.fullName} (Level ${level + 1}) received ${percentage}% (RM ${(commission / 100).toFixed(2)})`);
                 }
@@ -150,8 +151,9 @@ const processSpendingReward = async (spenderWallet, member, cashbackRate, amount
                         amount: commission
                     });
 
+                    // Send FCM
                     const message = buildSpendingRewardMessage(commission);
-                    setImmediate(() => sendMessage(message, uplineMember));
+                    sendMessage(message, uplineMember);
 
                     logger.info(`Upline Member ${uplineMember.fullName} (Level ${level + 1}) received ${percentage}% (RM ${(commission / 100).toFixed(2)})`);
                 }

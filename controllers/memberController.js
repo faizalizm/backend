@@ -198,21 +198,18 @@ const registerMember = asyncHandler(async (req, res) => {
             throw new Error('Invalid Member Data');
         }
     } catch (error) {
-        res.status(400);
+        res.status(500);
         throw new Error(`Registration Failed ${error}`);
     }
 });
 
 const loginMember = asyncHandler(async (req, res) => {
-    let {type, email, password, phone, refreshToken, fcmToken} = req.body;
+    const {type, email, password, phone, refreshToken, fcmToken} = req.body;
+    
+    logger.info(req.originalUrl);
 
     try {
         if (type === 'biometric') {
-            if (!refreshToken) {
-                res.status(400);
-                throw new Error('Refresh token is required');
-            }
-
             const member = await Member.findOne({refreshToken});
             if (!member) {
                 res.status(400);
@@ -236,13 +233,10 @@ const loginMember = asyncHandler(async (req, res) => {
                 refreshToken: newRefreshToken
             });
         } else {
-            if (email) {
-                email = email.toLowerCase();
-            }
             // Check user email/phone
             let member = null;
             if (email) {
-                member = await Member.findOne({email});
+                member = await Member.findOne({email: email.toLowerCase()});
             } else if (phone) {
                 member = await Member.findOne({phone});
             } else {
@@ -652,7 +646,7 @@ const inviteMember = asyncHandler(async (req, res) => {
 
     if (email) {
         // Send the invitation email (Asynchronously)
-        setImmediate(() => sendInvitationEmail(sanitizedEmail, req.member.referralCode, playStoreInvitation));
+        sendInvitationEmail(sanitizedEmail, req.member.referralCode, playStoreInvitation);
     }
 
     // Respond with the Play Store invitation link
