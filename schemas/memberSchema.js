@@ -24,7 +24,7 @@ const registerMemberSchema = Joi.object({
 
 const loginMemberSchema = Joi.object({
     type: Joi.string().min(1).max(32),
-    email: Joi.string().email().required(),
+    email: Joi.string().email(),
     password: Joi.string()
             .min(8).max(20)
             .pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z\d@$.!%*?&]{8,}$/)
@@ -35,7 +35,7 @@ const loginMemberSchema = Joi.object({
     refreshToken: Joi.string().min(1).max(256)
         .when('type', { is: 'biometric', then: Joi.required() }),
     fcmToken: Joi.string().min(1).max(256)
-}).xor('email', 'phone', 'refreshToken');
+}).xor('email', 'phone');
 
 module.exports = {
     registerMemberSchema,
