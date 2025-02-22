@@ -32,10 +32,12 @@ const trimBase64 = (result, maxLength = 50, visited = new Set()) => {
 const customFormat = winston.format.printf(({ timestamp, level, message, requestId, ...meta }) => {
     const metaString = Object.keys(meta).length ? JSON.stringify(meta, null, 2) : '';
 
-    return `${colors.cyan(`PROCESS ID: ${requestId || 'SYSTEM'}`)} ` + // Request ID in cyan
+    return `${colors.yellow(`${timestamp}`)} ` + // Timestamp in yellow
+            `| ` +
+            `${colors.cyan(`EID: ${requestId || 'SYSTEM'}`)} ` + // Request ID in cyan
+            `| ` +
             `${colors.bold(`[${level.toUpperCase()}]`)} ` + // Log level in bold
-            `${colors.yellow(`[${timestamp}]`)} ` + // Timestamp in yellow
-            `- ${colors.green(message)} ${metaString}`;              // Message in green
+            `${colors.green(message)} ${metaString}`;              // Message in green
 });
 
 // Add custom level colors

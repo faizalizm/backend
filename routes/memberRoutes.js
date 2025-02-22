@@ -1,5 +1,19 @@
 const express = require('express');
+const {validate} = require('../middleware/validatorMiddleware');
 const {protect} = require('../middleware/authMiddleware');
+
+const {
+    registerMemberSchema,
+    loginMemberSchema,
+//    getOtpSchema,
+//    deleteMemberSchema,
+//    resetPasswordSchema,
+//    getMemberSchema,
+//    updateMemberSchema,
+//    inviteMemberSchema,
+//    getReferralSchema,
+//    getVIPStatisticSchema
+} = require('../schemas/memberSchema');
 
 const {
     registerMember,
@@ -16,8 +30,8 @@ const {
 
 const router = express.Router();
 
-router.post('/register', registerMember);
-router.post('/login', loginMember);
+router.post('/register', validate(registerMemberSchema), registerMember);
+router.post('/login', validate(loginMemberSchema), loginMember);
 
 router.get('/otp', getOtp);
 router.delete('/', deleteMember);
