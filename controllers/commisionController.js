@@ -5,6 +5,8 @@ const Member = require('../models/memberModel');
 const Wallet = require('../models/walletModel');
 const Transaction = require('../models/transactionModel');
 
+const {updateMasterCharity} = require('../controllers/charityController');
+
 const processVIPCommision = async (member, amount) => {
     logger.info(`Processing VIP Referral Commision`);
 
@@ -101,11 +103,11 @@ const processSpendingReward = async (spenderWallet, member, cashbackRate, amount
         merchantDiscountRate
     });
     
-    // todo : update master charity
+    // add to charity - increase charity and count
+    updateMasterCharity(charitableContribution);
 
     // Percentages for each level
     const percentages = [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2]; // total up to 40%
-    logger.info(percentages.length);
 
     let currentMember = member.referredBy;
     let level = 0;
@@ -131,7 +133,11 @@ const processSpendingReward = async (spenderWallet, member, cashbackRate, amount
             const percentage = percentages[level] ?? 0; // If percentage not specied, then 0 commission
             const commission = amount * (cashbackRate / 100) * (percentage / 100);
 
-            if (uplineMember.type !== 'VIP' && level < 3) {
+            logger.info(commission / 100 < 0.01);
+            if (commission / 100 <= 0.01) {
+                logger.info(`Commision too small to distribute to ${uplineMember.fullName} (Level ${level + 1})`);
+                continue;
+            } else if (uplineMember.type !== 'VIP' && level < 3) {
                 logger.info(`Upline Member ${uplineMember.fullName} (Level ${level + 1}) missed on receiving ${percentage}% (RM ${(commission / 100).toFixed(2)})`);
             } else {
                 const uplineWallet = await Wallet.findOne({memberId: uplineMember._id}).select('balance');

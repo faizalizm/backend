@@ -35,7 +35,7 @@ const loginMemberSchema = Joi.object({
     refreshToken: Joi.string().min(1).max(256)
         .when('type', { is: 'biometric', then: Joi.required() }),
     fcmToken: Joi.string().min(1).max(256)
-}).xor('email', 'phone');
+}).xor('email', 'phone', 'refreshToken');
 
 module.exports = {
     registerMemberSchema,
