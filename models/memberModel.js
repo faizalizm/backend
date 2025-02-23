@@ -39,7 +39,8 @@ const memberSchema = new mongoose.Schema({
         unique: true // Prevent register phone twice
     },
     refreshToken: {
-        type: String
+        type: String,
+        unique: true
     },
     referredBy: {
         type: mongoose.Schema.Types.ObjectId,

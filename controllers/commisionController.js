@@ -37,7 +37,14 @@ const processVIPCommision = async (member, amount) => {
             const percentage = percentages[level] ?? 0; // If percentage not specied, then 0 commission
             const commission = (amount * percentage) / 100;
 
-            if (uplineMember.type !== 'VIP') { //  && level < 3 (commented this for spending reward)
+            if (commission / 100 < 0.01) {
+                logger.info(`Commision RM ${(commission / 100)} too small to distribute to ${uplineMember.fullName} (Level ${level + 1})`);
+
+                // Move to the next upline
+                currentMember = uplineMember.referredBy;
+                level++;
+                continue;
+            } else if (uplineMember.type !== 'VIP') { //  && level < 3 (commented this for spending reward)
                 logger.info(`Upline Member ${uplineMember.fullName} (Level ${level + 1}) missed on receiving ${percentage}% (RM ${(commission / 100).toFixed(2)})`);
             } else {
                 const uplineWallet = await Wallet.findOne({memberId: uplineMember._id}).select('balance');
@@ -102,7 +109,7 @@ const processSpendingReward = async (spenderWallet, member, cashbackRate, amount
         charitableContribution,
         merchantDiscountRate
     });
-    
+
     // add to charity - increase charity and count
     updateMasterCharity(charitableContribution);
 
@@ -133,8 +140,12 @@ const processSpendingReward = async (spenderWallet, member, cashbackRate, amount
             const percentage = percentages[level] ?? 0; // If percentage not specied, then 0 commission
             const commission = amount * (cashbackRate / 100) * (percentage / 100);
 
-            if (commission / 100 <= 0.01) {
-                logger.info(`Commision too small to distribute to ${uplineMember.fullName} (Level ${level + 1})`);
+            if (commission / 100 < 0.01) {
+                logger.info(`Commision RM ${(commission / 100)} too small to distribute to ${uplineMember.fullName} (Level ${level + 1})`);
+
+                // Move to the next upline
+                currentMember = uplineMember.referredBy;
+                level++;
                 continue;
             } else if (uplineMember.type !== 'VIP' && level < 3) {
                 logger.info(`Upline Member ${uplineMember.fullName} (Level ${level + 1}) missed on receiving ${percentage}% (RM ${(commission / 100).toFixed(2)})`);
@@ -173,6 +184,5 @@ const processSpendingReward = async (spenderWallet, member, cashbackRate, amount
         logger.error(error.stack);
     }
 };
-
 
 module.exports = {processVIPCommision, processSpendingReward};

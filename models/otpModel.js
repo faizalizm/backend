@@ -8,7 +8,6 @@ const otpSchema = new mongoose.Schema({
     phone: {
         type: String
     },
-
     otp: {
         type: Number
     },

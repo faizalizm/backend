@@ -4,7 +4,8 @@ const walletSchema = new mongoose.Schema({
     memberId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Member', // Reference to the referred member
-        required: true
+        required: true,
+        unique: true
     },
     balance: {
         type: Number, // Using Number for calculations
@@ -19,7 +20,8 @@ const walletSchema = new mongoose.Schema({
     },
     paymentCode: {
         type: String,
-        default: null
+        default: null,
+        unique: true
     },
     
     // Points

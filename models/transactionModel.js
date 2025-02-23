@@ -7,7 +7,8 @@ const transactionSchema = new mongoose.Schema({
     walletId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Wallet', // Reference to the referred wallet
-        required: true
+        required: true,
+        unique: true
     },
     systemType: {
         type: String,

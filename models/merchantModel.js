@@ -4,11 +4,13 @@ const merchantModel = new mongoose.Schema({
     memberId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Member', // Reference to the referred member
-        required: true
+        required: true,
+        unique: true
     },
     spendingCode: {
         type: String,
-        required: [true, 'Please specify spending code']
+        required: [true, 'Please specify spending code'],
+        unique: true
     },
     logo: {
         type: String,
