@@ -93,11 +93,11 @@ const topupWallet = asyncHandler(async (req, res) => {
         throw new Error('Payment channel not supported');
     }
 
-    const package = await Package.findOne(
+    const vipPackage = await Package.findOne(
             {type: 'Topup'},
             {name: 1, code: 1, categoryCode: 1, packageCharge: 1, emailContent: 1}
     );
-    if (!package) {
+    if (!vipPackage) {
         res.status(500);
         throw new Error('Package not found');
     }
@@ -109,7 +109,7 @@ const topupWallet = asyncHandler(async (req, res) => {
         throw new Error('Wallet Not Found');
     }
 
-    const getCategory = await getCategoryToyyib(req, res, package.categoryCode);
+    const getCategory = await getCategoryToyyib(req, res, vipPackage.categoryCode);
 
     try {
         const billExpiryDate = moment().tz('Asia/Kuala_Lumpur').add(5, 'minutes').format('DD-MM-YYYY HH:mm:ss');
@@ -121,7 +121,7 @@ const topupWallet = asyncHandler(async (req, res) => {
             type: 'N/A',
             description: 'Top Up',
             status: 'In Progress',
-            packageCode: package.code,
+            packageCode: vipPackage.code,
             amount: amount
         });
 
@@ -130,7 +130,7 @@ const topupWallet = asyncHandler(async (req, res) => {
             throw new Error('Failed to create transaction, please try again later');
         }
 
-        const createBill = await createBillToyyib(req, res, amount, package, getCategory, billExpiryDate);
+        const createBill = await createBillToyyib(req, res, amount, vipPackage, getCategory, billExpiryDate);
         const billCode = createBill.data[0].BillCode;
         const paymentUrl = process.env.TOYYIB_URL + '/' + billCode;
 

@@ -19,13 +19,13 @@ const getPackage = asyncHandler(async (req, res) => {
         throw new Error('Member is already a VIP');
     }
 
-    const package = await Package.find(
+    const vipPackage = await Package.find(
             {type: 'VIP'},
             {_id: 0, picture: 1, type: 1, name: 1, description: 1, price: 1, code: 1}
     );
 
-    if (package.length > 0) {
-        res.status(200).json(package);
+    if (vipPackage.length > 0) {
+        res.status(200).json(vipPackage);
     } else {
         res.status(404);
         throw new Error('No Package Available');
@@ -48,11 +48,11 @@ const purchasePackage = asyncHandler(async (req, res) => {
         throw new Error('Member is already a VIP');
     }
 
-    const package = await Package.findOne(
+    const vipPackage = await Package.findOne(
             {code, type: 'VIP'},
             {name: 1, price: 1, categoryCode: 1, packageCharge: 1, emailContent: 1}
     );
-    if (!package) {
+    if (!vipPackage) {
         res.status(404);
         throw new Error('Package Not Found');
     }
@@ -70,15 +70,15 @@ const purchasePackage = asyncHandler(async (req, res) => {
 
     if (paymentChannel === 'HubWallet') {
 
-        logger.info(`Wallet Balance: ${wallet.balance}, Package Price: ${package.price}`);
+        logger.info(`Wallet Balance: ${wallet.balance}, Package Price: ${vipPackage.price}`);
 
         // Check if wallet balance is sufficient for the package
-        if (wallet.balance < package.price) {
+        if (wallet.balance < vipPackage.price) {
             res.status(402); // HTTP 402: Payment Required
             throw new Error('Insufficient funds. Please top up your account.');
         }
 
-        wallet.balance -= package.price;
+        wallet.balance -= vipPackage.price;
         await wallet.save();
 
         req.member.type = 'VIP';
@@ -93,13 +93,13 @@ const purchasePackage = asyncHandler(async (req, res) => {
             description: 'VIP Payment',
             status: 'Success',
             packageCode: code,
-            amount: package.price,
+            amount: vipPackage.price,
             ...(shippingDetails && {shippingStatus: 'Preparing'}),
             ...(shippingDetails && {shippingDetails})
         });
 
         // Process VIP Referral Commission
-        processVIPCommision(req.member, package.price);
+        processVIPCommision(req.member, vipPackage.price);
 
         if (shippingDetails) {
             sendShippingNotification(transaction);
@@ -112,7 +112,7 @@ const purchasePackage = asyncHandler(async (req, res) => {
 
     } else if (paymentChannel === 'FPX') {
 
-        const getCategory = await getCategoryToyyib(req, res, package.categoryCode);
+        const getCategory = await getCategoryToyyib(req, res, vipPackage.categoryCode);
 
         try {
             const billExpiryDate = moment().tz('Asia/Kuala_Lumpur').add(5, 'minutes').format('DD-MM-YYYY HH:mm:ss');
@@ -125,7 +125,7 @@ const purchasePackage = asyncHandler(async (req, res) => {
                 description: 'VIP Payment',
                 status: 'In Progress',
                 packageCode: code,
-                amount: package.price,
+                amount: vipPackage.price,
                 ...(shippingDetails && {shippingStatus: 'Preparing'}),
                 ...(shippingDetails && {shippingDetails})
             });
@@ -135,7 +135,7 @@ const purchasePackage = asyncHandler(async (req, res) => {
                 throw new Error('Failed to create transaction, please try again later');
             }
 
-            const createBill = await createBillToyyib(req, res, package.price, package, getCategory, billExpiryDate);
+            const createBill = await createBillToyyib(req, res, vipPackage.price, vipPackage, getCategory, billExpiryDate);
             const billCode = createBill.data[0].BillCode;
             const paymentUrl = process.env.TOYYIB_URL + '/' + billCode;
 
@@ -143,7 +143,7 @@ const purchasePackage = asyncHandler(async (req, res) => {
             await Transaction.findByIdAndUpdate(transaction._id, {billCode}, {new : true});
 
             // Query to ToyyibPay
-            getBillTransactionsToyyib(req.member._id, wallet._id, package.price, billCode, "VIP Payment");
+            getBillTransactionsToyyib(req.member._id, wallet._id, vipPackage.price, billCode, "VIP Payment");
 
             // Return the response to the client
             res.status(200).json({paymentUrl, paymentExpiry: billExpiryDate});
