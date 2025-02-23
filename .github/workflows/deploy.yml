@@ -1,0 +1,61 @@
+
+name: Deploy to Ubuntu Server
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  test_and_deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Run Tests
+        run: npm test
+
+      - name: Setup SSH Connection
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H 148.135.138.168 >> ~/.ssh/known_hosts
+
+      - name: Get Commit SHA
+        id: commit
+        run: echo "::set-output name=sha::$(git rev-parse --short HEAD)"
+        
+      - name: Deploy to Ubuntu Server
+        run: |
+          ssh root@148.135.138.168 << 'EOF'
+            set -e
+            cd /root/hyba-project/backend
+            
+            # Create a backup branch (you can customize backup strategy)
+            git fetch origin
+            git checkout -B backup-main origin/main
+
+            # Pull latest changes
+            git pull origin main
+            
+            # Install dependencies
+            npm install --production
+            
+            # Attempt to restart app via PM2.
+            # If restart fails, automatically rollback.
+            if ! pm2 restart hyba; then
+              echo "Deployment failed, rolling back..."
+              git reset --hard backup-main
+              npm install
+              pm2 restart hyba
+              echo "Finished rolling back"
+              exit 1
+            fi
+          EOF
+
