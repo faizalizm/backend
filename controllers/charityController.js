@@ -60,14 +60,5 @@ const getCharityGallery = asyncHandler(async (req, res) => {
     }
 });
 
-const updateMasterCharity = async (charitableAmount) => {
-    await MasterCharity.updateOne({}, {
-        $inc: {
-            donationAmount: charitableAmount,
-            donationCount: 1
-        }
-    }, {upsert: true});
-};
-
-module.exports = {getCharity, getCharityGallery, updateMasterCharity};
+module.exports = {getCharity, getCharityGallery};
 

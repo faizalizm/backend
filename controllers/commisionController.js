@@ -4,8 +4,8 @@ const {buildSpendingRewardMessage, buildVIPCommisionMessage, sendMessage} = requ
 const Member = require('../models/memberModel');
 const Wallet = require('../models/walletModel');
 const Transaction = require('../models/transactionModel');
-
-const {updateMasterCharity} = require('../controllers/charityController');
+const MasterCharity = require('../models/masterCharityModel');
+const MasterMdr = require('../models/masterMdrModel');
 
 const processVIPCommision = async (member, amount) => {
     logger.info(`Processing VIP Referral Commision`);
@@ -91,10 +91,10 @@ const processSpendingReward = async (spenderWallet, member, cashbackRate, amount
 
     const spenderReward = amount * spenderPercentages / 100;
     const charitableContribution = amount * charitablePercentages / 100;
-    const merchantDiscountRate = amount * mdrPercentages / 100;
+    const mdrAmount = amount * mdrPercentages / 100;
 
     logger.info(`Amount : ${amount}, Cashback Rate : ${cashbackRate}`);
-    logger.info(`Spender Cashback : ${spenderReward}, Charitable Contribution : ${charitableContribution}, MDR : ${merchantDiscountRate}`);
+    logger.info(`Spender Cashback : ${spenderReward}, Charitable Contribution : ${charitableContribution}, MDR : ${mdrAmount}`);
     spenderWallet.points = Number(spenderWallet.points) + spenderReward;
     await spenderWallet.save();
 
@@ -107,11 +107,14 @@ const processSpendingReward = async (spenderWallet, member, cashbackRate, amount
         memberId: member._id,
         amount: spenderReward,
         charitableContribution,
-        merchantDiscountRate
+        mdrAmount
     });
 
     // add to charity - increase charity and count
     updateMasterCharity(charitableContribution);
+    
+    // add to mdr - increase amount
+    updateMasterMdr(mdrAmount);
 
     // Percentages for each level
     const percentages = [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2]; // total up to 40%
@@ -183,6 +186,21 @@ const processSpendingReward = async (spenderWallet, member, cashbackRate, amount
         logger.error(`Error processing VIP commission at Level ${level + 1}: ${error.message}`);
         logger.error(error.stack);
     }
+};
+
+const updateMasterCharity = async (charitableAmount) => {
+    await MasterCharity.updateOne({}, {
+        $inc: {
+            donationAmount: charitableAmount,
+            donationCount: 1
+        }
+    }, {upsert: true});
+};
+
+const updateMasterMdr = async (mdrAmount) => {
+    await MasterMdr.updateOne({}, {
+        $inc: {mdrAmount}
+    }, {upsert: true});
 };
 
 module.exports = {processVIPCommision, processSpendingReward};
