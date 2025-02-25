@@ -75,9 +75,11 @@ const setTokenOnLogin = async (member, token) => {
 
 const buildTransferMessage = (amount) => {
     return {
-        data: {
+        notification: {
             title: 'Received Transfer',
-            body: `You have received RM ${(amount / 100).toFixed(2)} in your Hub Wallet`,
+            body: `You have received RM ${(amount / 100).toFixed(2)} in your Hub Wallet`
+        },
+        data: {
             sound: 'default'
         }
     };
@@ -85,9 +87,11 @@ const buildTransferMessage = (amount) => {
 
 const buildQRPaymentMessage = (amount) => {
     return {
-        data: {
+        notification: {
             title: 'Received QR Transfer',
-            body: `You have received RM ${(amount / 100).toFixed(2)} in your Hub Wallet`,
+            body: `You have received RM ${(amount / 100).toFixed(2)} in your Hub Wallet`
+        },
+        data: {
             sound: 'default'
         }
     };
@@ -95,9 +99,11 @@ const buildQRPaymentMessage = (amount) => {
 
 const buildMerchantQRPaymentMessage = (amount) => {
     return {
-        data: {
+        notification: {
             title: 'Received Merchant QR Payment',
-            body: `You have received RM ${(amount / 100).toFixed(2)} in your Hub Wallet`,
+            body: `You have received RM ${(amount / 100).toFixed(2)} in your Hub Wallet`
+        },
+        data: {
             sound: 'default'
         }
     };
@@ -105,9 +111,11 @@ const buildMerchantQRPaymentMessage = (amount) => {
 
 const buildVIPCommisionMessage = (amount) => {
     return {
-        data: {
+        notification: {
             title: 'Received VIP Commision',
-            body: `A VIP has registered under you. You have received RM ${(amount / 100).toFixed(2)} in your Hub Wallet`,
+            body: `A VIP has registered under you. You have received RM ${(amount / 100).toFixed(2)} in your Hub Wallet`
+        },
+        data: {
             sound: 'default'
         }
     };
@@ -115,9 +123,11 @@ const buildVIPCommisionMessage = (amount) => {
 
 const buildSpendingRewardMessage = (amount) => {
     return {
-        data: {
+        notification: {
             title: 'Received Spending Rewards',
-            body: `Your downline has made a purchase. You have received RM ${(amount / 100).toFixed(2)} in your Hub Wallet`,
+            body: `Your downline has made a purchase. You have received RM ${(amount / 100).toFixed(2)} in your Hub Wallet`
+        },
+        data: {
             sound: 'default'
         }
     };
