@@ -17,8 +17,8 @@ const registerMemberSchema = Joi.object({
             .message('Phone number format is invalid')
             .required(),
     referredBy: Joi.string()
-            .pattern(/^\d{6}$/)
-            .message("ReferredBy must be exactly 6 digits")
+            .pattern(/^\d{8}$/)
+            .message("ReferredBy must be exactly 8 digits")
             .required()
 });
 
