@@ -17,8 +17,8 @@ const registerMemberSchema = Joi.object({
             .message('Phone number format is invalid')
             .required(),
     referredBy: Joi.string()
-            .pattern(/^\d{6}$/)
-            .message("ReferredBy must be exactly 6 digits")
+            .pattern(/^[a-zA-Z0-9]{7}$/)
+            .message("ReferredBy must be exactly 7 characters")
             .required()
 });
 
@@ -33,7 +33,7 @@ const loginMemberSchema = Joi.object({
             .pattern(/^(\+?\d{1,3})?\d{9,15}$/)
             .message('Phone number format is invalid'),
     refreshToken: Joi.string().min(1).max(256)
-        .when('type', { is: 'biometric', then: Joi.required() }),
+            .when('type', {is: 'biometric', then: Joi.required()}),
     fcmToken: Joi.string().min(1).max(256)
 }).xor('email', 'phone');
 
