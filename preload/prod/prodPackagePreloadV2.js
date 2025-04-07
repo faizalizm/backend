@@ -28,7 +28,7 @@ const preloadPackage = async () => {
         const packages = [
             {
                 type: 'VIP',
-                picture: encodeImageToBase64('../vipPackage.webp'),
+                picture: encodeImageToBase64('../vipPackage.jpeg'),
                 name: 'VIP Package',
                 description: [
                     "Sebagai Pengguna VIP Yang dapat Banyak ganjaran menarik.",
@@ -50,7 +50,7 @@ const preloadPackage = async () => {
             },
             {
                 type: 'VIP',
-                picture: encodeImageToBase64('../merchantPackage.webp'),
+                picture: encodeImageToBase64('../merchantPackage.jpeg'),
                 name: 'Merchant Package',
                 description: [
                     "Sebagai Pengguna VIP Yang dapat Banyak ganjaran menarik.",
