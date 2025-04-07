@@ -42,7 +42,7 @@ const registerMember = asyncHandler(async (req, res) => {
     }
 
     // Validate password strength (min 8 characters, max 20 characters, include at least 1 uppercase and 1 number)
-    const passwordRegex = /^(?=.*[A-Z])(?=.*\d)[A-Za-z\d]{8,20}$/;
+    const passwordRegex = /^(?=.*[A-Z])(?=.*\d)[A-Za-z\d@$!%*?&]{8,20}$/;
     if (!passwordRegex.test(password)) {
         res.status(400);
         throw new Error('Password must be between 8 and 20 characters, and include at least one uppercase letter and one number');
@@ -448,7 +448,7 @@ const resetPassword = asyncHandler(async (req, res) => {
         }
 
         // Validate password strength (min 8 characters, max 20 characters, include at least 1 uppercase and 1 number)
-        const passwordRegex = /^(?=.*[A-Z])(?=.*\d)[A-Za-z\d]{8,20}$/;
+        const passwordRegex = /^(?=.*[A-Z])(?=.*\d)[A-Za-z\d@$!%*?&]{8,20}$/;
         if (!passwordRegex.test(password)) {
             res.status(400);
             throw new Error('Password must be between 8 and 20 characters, and include at least one uppercase letter and one number');
@@ -592,7 +592,7 @@ const updateMember = asyncHandler(async (req, res) => {
     // Password hashing
     if (updates.password) {
         // Validate password strength (min 8 characters, max 20 characters, include at least 1 uppercase and 1 number)
-        const passwordRegex = /^(?=.*[A-Z])(?=.*\d)[A-Za-z\d]{8,20}$/;
+        const passwordRegex = /^(?=.*[A-Z])(?=.*\d)[A-Za-z\d@$!%*?&]{8,20}$/;
         if (!passwordRegex.test(updates.password)) {
             res.status(400);
             throw new Error('Password must be between 8 and 20 characters, and include at least one uppercase letter and one number');

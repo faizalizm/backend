@@ -51,7 +51,7 @@ const resetPassword = async (emails) => {
             console.log(`Generated new password : ${password}`);
 
             // Validate password strength (min 8 characters, max 20 characters, include at least 1 uppercase and 1 number)
-            const passwordRegex = /^(?=.*[A-Z])(?=.*\d)[A-Za-z\d]{8,20}$/;
+            const passwordRegex = /^(?=.*[A-Z])(?=.*\d)[A-Za-z\d@$!%*?&]{8,20}$/;
             if (!passwordRegex.test(password)) {
                 console.error('❌ Password must be between 8 and 20 characters, and include at least one uppercase letter and one number');
                 continue;
