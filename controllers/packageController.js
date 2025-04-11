@@ -20,7 +20,10 @@ const getPackage = asyncHandler(async (req, res) => {
     }
 
     const vipPackage = await Package.find(
-            {type: 'VIP'},
+            {
+                type: 'VIP',
+                status: {$ne: 'Inactive'}
+            },
             {_id: 0, picture: 1, type: 1, name: 1, description: 1, price: 1, code: 1}
     );
 
@@ -56,6 +59,9 @@ const purchasePackage = asyncHandler(async (req, res) => {
         res.status(404);
         throw new Error('Package Not Found');
     }
+
+    // Temporarily override package price
+    vipPackage.price = 25000;
 
     // Find the wallet linked to the member
     const wallet = await Wallet.findOne(
@@ -111,6 +117,11 @@ const purchasePackage = asyncHandler(async (req, res) => {
         });
 
     } else if (paymentChannel === 'FPX') {
+
+        // FPX STOP
+        res.status(404);
+        throw new Error('Payment channel not available');
+        // FPX STOP
 
         const getCategory = await getCategoryToyyib(req, res, vipPackage.categoryCode);
 

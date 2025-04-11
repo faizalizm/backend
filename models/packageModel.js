@@ -49,6 +49,10 @@ const packageSchema = new mongoose.Schema({
     emailContent: {
         type: String,
         required: [true, 'Please specify emailContent']
+    },
+    status: {
+        type: String,
+        enum: ['Active', 'Inactive']
     }
 }, {
     timestamps: true
