@@ -25,10 +25,10 @@ const registerMemberSchema = Joi.object({
 const loginMemberSchema = Joi.object({
     type: Joi.string().min(1).max(32),
     email: Joi.string().email(),
-    password: Joi.string()
-            .min(8).max(20)
-            .pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z\d@$.!%*?&]{8,}$/)
-            .message('Password must contain at least one uppercase letter, one lowercase letter, and one number.'),
+//    password: Joi.string()
+//            .min(8).max(20)
+//            .pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z\d@$.!%*?&]{8,}$/)
+//            .message('Password must contain at least one uppercase letter, one lowercase letter, and one number.'),
     phone: Joi.string()
             .pattern(/^(\+?\d{1,3})?\d{9,15}$/)
             .message('Phone number format is invalid'),
