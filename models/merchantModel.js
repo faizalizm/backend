@@ -27,15 +27,18 @@ const merchantModel = new mongoose.Schema({
     },
     name: {
         type: String,
-        required: [true, 'Please specify name']
+        required: [true, 'Please specify name'],
+        trim: true
     },
     phone: {
         type: String,
-        required: [true, 'Please specify phone']
+        required: [true, 'Please specify phone'],
+        trim: true
     },
     description: {
         type: String,
-        required: [true, 'Please specify description']
+        required: [true, 'Please specify description'],
+        trim: true
     },
     bizType: {
         type: String,
@@ -109,21 +112,26 @@ const merchantModel = new mongoose.Schema({
     // Same with shipping details
     addressLine1: {
         type: String,
-        required: [true, 'Please specify address line 1']
+        required: [true, 'Please specify address line 1'],
+        trim: true
     },
     addressLine2: {
-        type: String
+        type: String,
+        trim: true
     },
     addressLine3: {
-        type: String
+        type: String,
+        trim: true
     },
     city: {
         type: String,
-        required: [true, 'Please specify city']
+        required: [true, 'Please specify city'],
+        trim: true
     },
     state: {
         type: String,
-        required: [true, 'Please specify state']
+        required: [true, 'Please specify state'],
+        trim: true
     },
     postCode: {
         type: String,
@@ -133,11 +141,13 @@ const merchantModel = new mongoose.Schema({
                 return /^\d{5}$/.test(value); // Adjust for country-specific formats
             },
             message: 'Invalid post code format.'
-        }
+        },
+        trim: true
     },
     country: {
         type: String,
-        required: [true, 'Please specify country']
+        required: [true, 'Please specify country'],
+        trim: true
     }
 }, {
     timestamps: true

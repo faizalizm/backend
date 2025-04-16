@@ -18,11 +18,13 @@ const packageSchema = new mongoose.Schema({
     type: {
         type: String,
         required: [true, 'Please specify type'],
-        enum: ['VIP', 'Topup']
+        enum: ['VIP', 'Topup'],
+        trim: true
     },
     name: {
         type: String,
-        required: [true, 'Please specify name']
+        required: [true, 'Please specify name'],
+        trim: true
     },
     description: {
         type: [String], // Array for multiline desc,
@@ -30,16 +32,19 @@ const packageSchema = new mongoose.Schema({
     },
     price: {
         type: String,
-        default: null // User set if topup
+        default: null, // User set if topup
+        trim: true
     },
     code: {
         type: String,
-        unique: true // code for frontend selection
+        unique: true, // code for frontend selection
+        trim: true
     },
     categoryCode: {
         type: String,
         required: [true, 'Please specify categoryCode'],
-        unique: true // ToyyibPay categoryCode, only backend internal
+        unique: true, // ToyyibPay categoryCode, only backend internal
+        trim: true
     },
     packageCharge: {
         type: Number,
@@ -48,7 +53,8 @@ const packageSchema = new mongoose.Schema({
     },
     emailContent: {
         type: String,
-        required: [true, 'Please specify emailContent']
+        required: [true, 'Please specify emailContent'],
+        trim: true
     },
     status: {
         type: String,
