@@ -19,15 +19,19 @@ const memberSchema = new mongoose.Schema({
     },
     fullName: {
         type: String,
-        required: [true, 'Please specify name']
+        required: [true, 'Please specify name'],
+        trim: true
     },
     userName: {
-        type: String
+        type: String,
+        trim: true
     },
     email: {
         type: String,
         required: [true, 'Please specify email'],
-        unique: true // Prevent register email twice
+        unique: true, // Prevent register email twice
+        lowercase: true,
+        trim: true
     },
     password: {
         type: String,
@@ -36,7 +40,8 @@ const memberSchema = new mongoose.Schema({
     phone: {
         type: String,
         required: [true, 'Please specify phone'],
-        unique: true // Prevent register phone twice
+        unique: true, // Prevent register phone twice
+        trim: true
     },
     refreshToken: {
         type: String,

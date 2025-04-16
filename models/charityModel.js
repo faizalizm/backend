@@ -17,11 +17,13 @@ const charitySchema = new mongoose.Schema({
     },
     name: {
         type: String,
-        required: [true, 'Please specify charity name']
+        required: [true, 'Please specify charity name'],
+        trim: true
     },
     description: {
         type: String,
-        required: [true, 'Please specify charity description']
+        required: [true, 'Please specify charity description'],
+        trim: true
     },
     category: {
         type: [String],
