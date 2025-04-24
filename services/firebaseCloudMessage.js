@@ -7,7 +7,7 @@ const {logger, trimBase64} = require('./logger');
 
 const CloudMessagingModel = require('../models/cloudMessagingModel');
 
-const serviceAccount = require("../firebase-service-account");
+const serviceAccount = require("../firebase-service-account.json");
 
 const {FCM_URL} = process.env;
 

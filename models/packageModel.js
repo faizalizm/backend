@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const moment = require('moment-timezone');
 
 const packageSchema = new mongoose.Schema({
     picture: {
@@ -62,6 +63,18 @@ const packageSchema = new mongoose.Schema({
     }
 }, {
     timestamps: true
+});
+
+packageSchema.set('toJSON', {
+    transform: function (doc, ret) {
+        if (ret.createdAt) {
+            ret.createdAt = moment(ret.createdAt).tz(process.env.TIMEZONE).format(process.env.TIMESTAMP_FORMAT);
+        }
+        if (ret.updatedAt) {
+            ret.updatedAt = moment(ret.updatedAt).tz(process.env.TIMEZONE).format(process.env.TIMESTAMP_FORMAT);
+        }
+        return ret;
+    }
 });
 
 module.exports = mongoose.model('Package', packageSchema);
