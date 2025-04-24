@@ -1,5 +1,7 @@
 const mongoose = require('mongoose');
+const moment = require('moment-timezone');
 
+const referralSchema = require('./referralSchema');
 const bankDetailsSchema = require('./bankDetailsSchema');
 const shippingDetailsSchema = require('./shippingDetailsSchema');
 
@@ -57,36 +59,7 @@ const memberSchema = new mongoose.Schema({
         required: true
     },
     referrals: {
-        type: [
-            {
-                level: {
-                    type: String,
-                    required: true
-                },
-                referrals: {
-                    type: [
-                        {
-                            referrerId: {
-                                type: mongoose.Schema.Types.ObjectId,
-                                ref: 'Member' // Reference to the referrer
-                            },
-                            memberId: {
-                                type: mongoose.Schema.Types.ObjectId,
-                                ref: 'Member', // Reference to the referred member
-                                required: true
-                            },
-                            referredAt: {
-                                type: Date,
-                                default: Date.now // Default to current date/time
-                            }
-                        }
-                    ],
-                    _id: false,
-                    default: [] // Default to an empty array if no referrals are provided
-                }
-            }
-        ],
-        _id: false,
+        type: [referralSchema],
         default: [] // Default to an empty array
     },
     type: {
@@ -117,5 +90,19 @@ const memberSchema = new mongoose.Schema({
     timestamps: true
 });
 
+memberSchema.set('toJSON', {
+    transform: function (doc, ret) {
+        if (ret.vipAt) {
+            ret.vipAt = moment(ret.vipAt).tz(process.env.TIMEZONE).format(process.env.TIMESTAMP_FORMAT);
+        }
+        if (ret.createdAt) {
+            ret.createdAt = moment(ret.createdAt).tz(process.env.TIMEZONE).format(process.env.TIMESTAMP_FORMAT);
+        }
+        if (ret.updatedAt) {
+            ret.updatedAt = moment(ret.updatedAt).tz(process.env.TIMEZONE).format(process.env.TIMESTAMP_FORMAT);
+        }
+        return ret;
+    }
+});
 
 module.exports = mongoose.model('Member', memberSchema);
