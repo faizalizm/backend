@@ -150,7 +150,7 @@ const processSpendingReward = async (spenderWallet, member, cashbackRate, amount
                 currentMember = uplineMember.referredBy;
                 level++;
                 continue;
-            } else if (uplineMember.type !== 'VIP' && level < 3) {
+            } else if (uplineMember.type !== 'VIP' && level >= 3) {
                 logger.info(`Upline Member ${uplineMember.fullName} (Level ${level + 1}) missed on receiving ${percentage}% (RM ${(commission / 100).toFixed(2)})`);
             } else {
                 const uplineWallet = await Wallet.findOne({memberId: uplineMember._id}).select('balance');
