@@ -30,8 +30,10 @@ const {
 
 const router = express.Router();
 
-router.post('/register', validate(registerMemberSchema), registerMember);
-router.post('/login', validate(loginMemberSchema), loginMember);
+//router.post('/register', validate(registerMemberSchema), registerMember);
+//router.post('/login', validate(loginMemberSchema), loginMember);
+router.post('/register', registerMember);
+router.post('/login', loginMember);
 
 router.get('/otp', getOtp);
 router.delete('/', deleteMember);
