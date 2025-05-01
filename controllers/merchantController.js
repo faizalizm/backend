@@ -11,7 +11,7 @@ const Transaction = require('../models/transactionModel');
 const {processSpendingReward} = require('../controllers/commisionController');
 
 const searchMerchant = asyncHandler(async (req, res) => {
-    const {field, term} = req.query;
+    const {field, term, page = 1, limit = 5} = req.query;
 
     if (!field || !term) {
         res.status(400);
@@ -39,10 +39,22 @@ const searchMerchant = asyncHandler(async (req, res) => {
         };
 
         // Perform the search
-        const merchants = await Merchant.find(searchQuery, {_id: 0, spendingCode: 0});
+        // Fetch one extra to detect if there's a next page
+        const skip = (parseInt(page) - 1) * parseInt(limit);
+        const result = await Merchant.find(searchQuery, { _id: 0, spendingCode: 0 })
+            .skip(skip)
+            .limit(parseInt(limit) + 1);
+
+        const hasNextPage = result.length > limit;
+        const merchants = hasNextPage ? result.slice(0, limit) : result;
 
         if (merchants.length > 0) {
-            res.status(200).json(merchants);
+            res.status(200).json({
+                page: parseInt(page),
+                pageSize: parseInt(limit),
+                hasNextPage,
+                merchants
+            });
         } else {
             res.status(404);
             throw new Error('No Merchant Found');
