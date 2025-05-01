@@ -10,17 +10,19 @@ const MasterMdr = require('../models/masterMdrModel');
 const processVIPCommision = async (member, amount) => {
     logger.info(`Processing VIP Referral Commision`);
 
-    // Percentages for each level
+    // Percentages for each level (pass-up concept)
     const percentages = [20, 2, 2, 2, 1.2, 1.2, 0.8, 0.8, 0.4, 0.4, 0.2, 0.2, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1];
 
     let currentMember = member.referredBy;
     let level = 0;
+    let payoutLevel = 0;
 
     const visited = new Set();
 
     try {
         while (currentMember && level < 20) {
             logger.info(`Level ${level + 1}`);
+            logger.info(`Payout Level ${payoutLevel + 1}`);
 
             if (visited.has(currentMember)) {
                 logger.info('Cycle detected in referral chain. Breaking loop.');
@@ -33,12 +35,13 @@ const processVIPCommision = async (member, amount) => {
             if (!uplineMember)
                 break;
 
-            // Calculate the commission for this level
-            const percentage = percentages[level] ?? 0; // If percentage not specied, then 0 commission
+            // Calculate the commission for this payoutLevel
+            const percentage = percentages[payoutLevel] ?? 0; // If percentage not specied, then 0 commission
             const commission = (amount * percentage) / 100;
+            logger.info(`Commision : RM ${(commission / 100).toFixed(2)}`);
 
             if (commission / 100 < 0.01) {
-                logger.info(`Commision RM ${(commission / 100)} too small to distribute to ${uplineMember.fullName} (Level ${level + 1})`);
+                logger.info(`Commision RM ${(commission / 100).toFixed(2)} too small to distribute to ${uplineMember.fullName} (Level ${level + 1})`);
 
                 // Move to the next upline
                 currentMember = uplineMember.referredBy;
@@ -69,6 +72,9 @@ const processVIPCommision = async (member, amount) => {
                     sendMessage(message, uplineMember);
 
                     logger.info(`Upline Member ${uplineMember.fullName} (Level ${level + 1}) received ${percentage}% (RM ${(commission / 100).toFixed(2)})`);
+                    
+                    // payoutLevel increases only when a VIP receives commission
+                    payoutLevel++;
                 }
             }
 
