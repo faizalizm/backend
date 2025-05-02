@@ -41,30 +41,30 @@ const searchMerchant = asyncHandler(async (req, res) => {
         // Perform the search
         let merchants;
         let hasNextPage;
-        if (!page && !limit) {
+//        if (!page && !limit) {
             merchants = await Merchant.find(searchQuery, {_id: 0, memberId: 0, spendingCode: 0});
-        } else {
-            // Fetch one extra to detect if there's a next page
-            const skip = (parseInt(page) - 1) * parseInt(limit);
-            const result = await Merchant.find(searchQuery, {_id: 0, memberId: 0, spendingCode: 0})
-                    .skip(skip)
-                    .limit(parseInt(limit) + 1);
-
-            hasNextPage = result.length > limit;
-            merchants = hasNextPage ? result.slice(0, limit) : result;
-        }
+//        } else {
+//            // Fetch one extra to detect if there's a next page
+//            const skip = (parseInt(page) - 1) * parseInt(limit);
+//            const result = await Merchant.find(searchQuery, {_id: 0, memberId: 0, spendingCode: 0})
+//                    .skip(skip)
+//                    .limit(parseInt(limit) + 1);
+//
+//            hasNextPage = result.length > limit;
+//            merchants = hasNextPage ? result.slice(0, limit) : result;
+//        }
 
         if (merchants.length > 0) {
-            if (!page && !limit) {
+//            if (!page && !limit) {
                 res.status(200).json(merchants);
-            } else {
-                res.status(200).json({
-                    page: parseInt(page),
-                    pageSize: parseInt(limit),
-                    hasNextPage,
-                    merchants
-                });
-            }
+//            } else {
+//                res.status(200).json({
+//                    page: parseInt(page),
+//                    pageSize: parseInt(limit),
+//                    hasNextPage,
+//                    merchants
+//                });
+//            }
         } else {
             res.status(404);
             throw new Error('No Merchant Found');
