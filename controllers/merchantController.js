@@ -11,7 +11,7 @@ const Transaction = require('../models/transactionModel');
 const {processSpendingReward} = require('../controllers/commisionController');
 
 const searchMerchant = asyncHandler(async (req, res) => {
-    const {field, term, page = 1, limit = 5} = req.query;
+    const {field, term, page, limit} = req.query;
 
     if (!field || !term) {
         res.status(400);
@@ -39,22 +39,32 @@ const searchMerchant = asyncHandler(async (req, res) => {
         };
 
         // Perform the search
-        // Fetch one extra to detect if there's a next page
-        const skip = (parseInt(page) - 1) * parseInt(limit);
-        const result = await Merchant.find(searchQuery, { _id: 0, spendingCode: 0 })
-            .skip(skip)
-            .limit(parseInt(limit) + 1);
+        let merchants;
+        let hasNextPage;
+        if (!page && !limit) {
+            merchants = await Merchant.find(searchQuery, {_id: 0, memberId: 0, spendingCode: 0});
+        } else {
+            // Fetch one extra to detect if there's a next page
+            const skip = (parseInt(page) - 1) * parseInt(limit);
+            const result = await Merchant.find(searchQuery, {_id: 0, memberId: 0, spendingCode: 0})
+                    .skip(skip)
+                    .limit(parseInt(limit) + 1);
 
-        const hasNextPage = result.length > limit;
-        const merchants = hasNextPage ? result.slice(0, limit) : result;
+            hasNextPage = result.length > limit;
+            merchants = hasNextPage ? result.slice(0, limit) : result;
+        }
 
         if (merchants.length > 0) {
-            res.status(200).json({
-                page: parseInt(page),
-                pageSize: parseInt(limit),
-                hasNextPage,
-                merchants
-            });
+            if (!page && !limit) {
+                res.status(200).json(merchants);
+            } else {
+                res.status(200).json({
+                    page: parseInt(page),
+                    pageSize: parseInt(limit),
+                    hasNextPage,
+                    merchants
+                });
+            }
         } else {
             res.status(404);
             throw new Error('No Merchant Found');
