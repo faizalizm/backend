@@ -5,7 +5,10 @@ const {logger} = require('./logger');
 const sendMail = async (mailId, subject, htmlContent, recipientEmail) => {
     try {
         const transporter = nodemailer.createTransport({
-            service: 'gmail',
+            host: 'smtp.hostinger.com',
+            port: 465, // or 587
+            secure: true,
+//            service: 'gmail',
             auth: {
                 user: process.env.EMAIL_NOREPLY,
                 pass: process.env.EMAIL_PWD
@@ -16,7 +19,7 @@ const sendMail = async (mailId, subject, htmlContent, recipientEmail) => {
         const replyTo = process.env.EMAIL_ADMIN;
 
         await transporter.sendMail({
-            from: process.env.EMAIL_NOREPLY,
+            from: `"${process.env.EMAIL_NAME}" <${process.env.EMAIL_NOREPLY}>`,
             to,
             replyTo,
             subject,
