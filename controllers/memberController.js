@@ -29,19 +29,22 @@ const registerMember = asyncHandler(async (req, res) => {
     }
 
     // Check if member is already registered
-    const memberExist = await Member.findOne({
+    logger.info('Fetching member details');
+    const memberDetails = await Member.findOne({
         $or: [
             {email: email.toLowerCase()}, // Check for existing email
             {phone: phone}  // Check for existing phone number
         ]
     });
 
-    if (memberExist) {
+    logger.info('Checking email/phone uniqueness');
+    if (memberDetails) {
         res.status(400);
         throw new Error('Email or Phone is already in use');
     }
 
     // Validate password strength (min 8 characters, max 20 characters, include at least 1 uppercase and 1 number)
+    logger.info('Validating password strength');
     const passwordRegex = /^(?=.*[A-Z])(?=.*\d)[A-Za-z\d@$!%*?&]{8,20}$/;
     if (!passwordRegex.test(password)) {
         res.status(400);
@@ -53,6 +56,7 @@ const registerMember = asyncHandler(async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, salt);
 
     // Find referrer by referralCode if provided
+    logger.info('Fetching referrer details');
     let referrer = null;
     if (referredBy) {
         referrer = await Member.findOne({referralCode: referredBy});
@@ -63,6 +67,7 @@ const registerMember = asyncHandler(async (req, res) => {
     }
 
     // Generate Referral Code
+    logger.info('Generating referrer code');
     let isReferralCodeUnique = false;
     let memberReferralCode;
     while (!isReferralCodeUnique) {
@@ -77,6 +82,7 @@ const registerMember = asyncHandler(async (req, res) => {
     }
 
     // Create Member
+    logger.info('Creating member');
     const member = await Member.create({
         fullName,
         email,
@@ -87,6 +93,7 @@ const registerMember = asyncHandler(async (req, res) => {
     });
 
     // Generate Payment Code
+    logger.info('Generating payment code');
     let isPaymentCodeUnique = false;
     let paymentCode;
     while (!isPaymentCodeUnique) {
@@ -100,6 +107,7 @@ const registerMember = asyncHandler(async (req, res) => {
         }
     }
 
+    logger.info('Creating wallet');
     const wallet = await Wallet.create({
         memberId: member._id,
         balance: 0,
@@ -131,8 +139,6 @@ const registerMember = asyncHandler(async (req, res) => {
                     levelEntry.referrals.push(newReferral);
                 }
 
-
-                // Debugging: log what we added to Level 1 referrals
                 logger.info(`Added ${member.fullName} to ${referrer.fullName}'s Level 1 referrals`);
 
                 // Save the referrer with the new referral added
@@ -205,11 +211,11 @@ const registerMember = asyncHandler(async (req, res) => {
 
 const loginMember = asyncHandler(async (req, res) => {
     const {type, email, password, phone, refreshToken, fcmToken} = req.body;
-    
-    logger.info(req.originalUrl);
 
     try {
+        logger.info(`Login Type : ${type}`);
         if (type === 'biometric') {
+            logger.info('Fetching member details');
             const member = await Member.findOne({refreshToken});
             if (!member) {
                 res.status(400);
@@ -220,9 +226,11 @@ const loginMember = asyncHandler(async (req, res) => {
             }
 
             if (fcmToken) {
+                logger.info('Saving FCM token');
                 await setTokenOnLogin(member, fcmToken);
             }
 
+            logger.info('Generating new refresh token');
             const newRefreshToken = generateToken(member._id, process.env.REFRESH_TOKEN_EXPIRY);
             member.refreshToken = newRefreshToken;
             await member.save();
@@ -237,6 +245,7 @@ const loginMember = asyncHandler(async (req, res) => {
             });
         } else {
             // Check user email/phone
+            logger.info('Fetching member details');
             let member = null;
             if (email) {
                 member = await Member.findOne({email: email.toLowerCase()});
@@ -248,16 +257,20 @@ const loginMember = asyncHandler(async (req, res) => {
             }
 
             if (!member) {
+                logger.warn('Member not found');
                 res.status(400);
                 throw new Error('Invalid credentials');
             }
 
+            logger.info('Validating password');
             if (await bcrypt.compare(password, member.password)) {
 
                 if (fcmToken) {
+                    logger.info('Saving FCM token');
                     await setTokenOnLogin(member, fcmToken);
                 }
 
+                logger.info('Generating new refresh token');
                 const newRefreshToken = generateToken(member._id, process.env.REFRESH_TOKEN_EXPIRY);
                 member.refreshToken = newRefreshToken;
                 await member.save();
@@ -271,6 +284,7 @@ const loginMember = asyncHandler(async (req, res) => {
                     refreshToken: newRefreshToken
                 });
             } else {
+                logger.warn('Invalid password');
                 res.status(400);
                 throw new Error('Invalid credentials');
             }
@@ -292,6 +306,7 @@ const getOtp = asyncHandler(async (req, res) => {
     try {
         const query = {};
         if (email) {
+            logger.info('Validating email');
             const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
             if (email && !emailRegex.test(email)) {
                 res.status(400);
@@ -303,9 +318,11 @@ const getOtp = asyncHandler(async (req, res) => {
         if (phone)
             query.phone = phone;
 
+        logger.info('Fetching most recent OTP');
         const lastOtp = await Otp.findOne(query).sort({createdAt: -1}); // Get the most recent OTP
 
         if (lastOtp) {
+            logger.info('Validating OTP cooldown');
             const now = new Date();
             const lastSent = new Date(lastOtp.createdAt);
             const interval = 2 * 60 * 1000; // 2 minutes in milliseconds
@@ -324,15 +341,18 @@ const getOtp = asyncHandler(async (req, res) => {
         }
 
         // Generate OTP
+        logger.info('Generating OTP');
         const minutesAfterExpiry = 5;
         const otp = Math.floor(100000 + Math.random() * 900000); // 6-digit OTP
         const otpExpiry = new Date(Date.now() + minutesAfterExpiry * 60 * 1000); // 5 minutes from now
         logger.info(`Email : ${email}, OTP : ${otp}, Expiry : ${otpExpiry}`);
 
         // Save OTP
+        logger.info('Creating OTP');
         const createdOtp = await Otp.create({email, phone, otp, otpExpiry});
 
         if (email) {
+            logger.info('Sending OTP via email');
             await sendOtpEmail(email, otp, minutesAfterExpiry, otpExpiry);
         }
 
@@ -355,19 +375,22 @@ const deleteMember = asyncHandler(async (req, res) => {
     }
 
     // Check user email
+    logger.info('Fetching member details');
     let member = await Member.findOne({email}, {password: 1, phone: 1, email: 1, isDeleted: 1});
     if (!member) {
         res.status(404);
-        throw new Error('Member not found');
+        throw new Error('Invalid credentials');
     }
 
     // Check if member is not deleted
+    logger.info('Checking if member deleted previously');
     if (member.isDeleted) {
         res.status(400);
         throw new Error('Member account is already deleted');
     }
 
     // Find from OTP list
+    logger.info('Fetching most recent OTP');
     const lastOtp = await Otp.findOne({email}).sort({createdAt: -1}); // Get the most recent OTP
     if (!lastOtp) {
         res.status(404);
@@ -375,6 +398,7 @@ const deleteMember = asyncHandler(async (req, res) => {
     }
 
     // Check OTP expiry
+    logger.info('Validating OTP expiration');
     const now = new Date();
     const otpExpiry = new Date(lastOtp.otpExpiry);
     if (now > otpExpiry) {
@@ -382,12 +406,15 @@ const deleteMember = asyncHandler(async (req, res) => {
         throw new Error('OTP has expired');
     }
 
+    logger.info('Validating OTP');
     if (otp !== lastOtp.otp) {
         res.status(400);
         throw new Error('OTP is invalid');
     }
 
+    logger.info('Validating password');
     if (await bcrypt.compare(password, member.password)) {
+        logger.info('Deleting member details');
         // Mark as deleted
         member.fullName = null;
         member.userName = null;
@@ -415,26 +442,23 @@ const resetPassword = asyncHandler(async (req, res) => {
         }
 
         // Check user email
+        logger.info('Fetching member details');
         let member = await Member.findOne({email}, {phone: 1, email: 1, isDeleted: 1});
         if (!member) {
             res.status(404);
             throw new Error('Member not found');
         }
 
-        // Check if member is not deleted
-        if (member.isDeleted) {
-            res.status(400);
-            throw new Error('Member account is already deleted');
-        }
-
         // Find from OTP list
+        logger.info('Fetching most recent OTP');
         const lastOtp = await Otp.findOne({email}).sort({createdAt: -1}); // Get the most recent OTP
         if (!lastOtp) {
-            res.status(404);
-            throw new Error('No OTP found for this email');
+            res.status(400);
+            throw new Error('OTP is invalid');
         }
 
         // Check OTP expiry
+        logger.info('Validating OTP expiration');
         const now = new Date();
         const otpExpiry = new Date(lastOtp.otpExpiry);
         if (now > otpExpiry) {
@@ -442,12 +466,14 @@ const resetPassword = asyncHandler(async (req, res) => {
             throw new Error('OTP has expired, kindly request a new one');
         }
 
+        logger.info('Validating OTP');
         if (otp !== lastOtp.otp) {
             res.status(400);
             throw new Error('OTP is invalid');
         }
 
         // Validate password strength (min 8 characters, max 20 characters, include at least 1 uppercase and 1 number)
+        logger.info('Validating password strength');
         const passwordRegex = /^(?=.*[A-Z])(?=.*\d)[A-Za-z\d@$!%*?&]{8,20}$/;
         if (!passwordRegex.test(password)) {
             res.status(400);
@@ -470,11 +496,13 @@ const resetPassword = asyncHandler(async (req, res) => {
 
 const getMember = asyncHandler(async (req, res) => {
     try {
+        logger.info('Fetching member details');
         const member = await Member.findById(req.member._id, {_id: 0, password: 0, referrals: 0, __v: 0}).lean();
 
         if (!req.member.referredBy) {
             member.referredBy = 'Not Set';
         } else {
+            logger.info('Fetching referrer details');
             const referrer = await Member.findOne({_id: req.member.referredBy}, {_id: 0, fullName: 1});
             if (referrer) {
                 member.referredBy = referrer.fullName;
@@ -525,6 +553,7 @@ const updateMember = asyncHandler(async (req, res) => {
         }
 
         // Find the referrer
+        logger.info('Fetching referrer details');
         const referrer = await Member.findOne({referralCode: updates.referredBy});
 
         // Check if the referral code exists
@@ -570,6 +599,7 @@ const updateMember = asyncHandler(async (req, res) => {
     // Check if the profile picture exists
     if (updates.profilePicture) {
         // Check if the base64 string is in the correct format (data:image/png;base64 or data:image/jpeg;base64)
+        logger.info('Validating profile picture format');
         const regex = /^data:image\/(jpg|jpeg|png);base64,/;
         if (!regex.test(updates.profilePicture)) {
             res.status(400);
@@ -583,6 +613,7 @@ const updateMember = asyncHandler(async (req, res) => {
         const buffer = Buffer.from(base64Data, 'base64');
 
         // Check if the image size is within 2MB limit
+        logger.info('Validating profile picture size');
         if (buffer.length > 2 * 1024 * 1024) { // 2MB limit
             res.status(400);
             throw new Error('Image size must be less than 2MB');
@@ -592,6 +623,7 @@ const updateMember = asyncHandler(async (req, res) => {
     // Password hashing
     if (updates.password) {
         // Validate password strength (min 8 characters, max 20 characters, include at least 1 uppercase and 1 number)
+        logger.info('Validating password strength');
         const passwordRegex = /^(?=.*[A-Z])(?=.*\d)[A-Za-z\d@$!%*?&]{8,20}$/;
         if (!passwordRegex.test(updates.password)) {
             res.status(400);
@@ -603,6 +635,7 @@ const updateMember = asyncHandler(async (req, res) => {
         updates.password = hashedPassword;
     }
     try {
+        logger.info('Updating member details');
         const updatedMember = await Member.findByIdAndUpdate(req.member._id, updates, {
             new : true,
             runValidators: true // Ensures schema validation is applied
@@ -646,9 +679,11 @@ const inviteMember = asyncHandler(async (req, res) => {
 
     const appPackage = process.env.APP_PACKAGE;
     const playStoreInvitation = `https://play.google.com/store/apps/details?id=${appPackage}&hl=en&pli=1&ref=${req.member.referralCode}`;
+    logger.info(`Invitation link : ${playStoreInvitation}`);
 
     if (email) {
         // Send the invitation email (Asynchronously)
+        logger.info('Sending invitation via email');
         sendInvitationEmail(sanitizedEmail, req.member.referralCode, playStoreInvitation);
     }
 
@@ -665,6 +700,7 @@ const getReferral = asyncHandler(async (req, res) => {
 
     try {
         // Find the member based on their ID
+        logger.info('Fetching member details');
         const member = await Member.findById(req.member._id);
 
         if (!member) {
@@ -678,7 +714,10 @@ const getReferral = asyncHandler(async (req, res) => {
         }
 
         const populatedReferrals = await Promise.all(referralsForLevel.referrals.map(async (referral) => {
+
+            logger.info('Fetching referrer details');
             const populatedReferrer = await Member.findById(referral.referrerId).select('fullName type vipAt createdAt -_id');
+            logger.info('Fetching member details');
             const populatedMember = await Member.findById(referral.memberId).select('fullName type vipAt createdAt -_id');
 
             return {
@@ -724,7 +763,10 @@ const getReferral = asyncHandler(async (req, res) => {
 
 const getVIPStatistic = asyncHandler(async (req, res) => {
     try {
+        logger.info('Fetching total live VIP');
         const totalLiveVIP = await getTotalLiveVIP();
+
+        logger.info('Fetching recent VIP');
         const recentVip = await getRecentVIP();
 
         res.status(200).json({

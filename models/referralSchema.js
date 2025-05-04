@@ -23,7 +23,7 @@ const referralItemSchema = new mongoose.Schema({
 referralItemSchema.set('toJSON', {
     transform: function (doc, ret) {
         if (ret.referredAt) {
-            ret.referredAt = moment(ret.referredAt).tz(process.env.TIMEZONE).format(process.env.TIMESTAMP_FORMAT);
+            ret.referredAt = moment(ret.referredAt).tz(process.env.TIMEZONE).format(process.env.TIMESTAMP_FORMAT_DISPLAY);
         }
         return ret;
     }

@@ -33,8 +33,8 @@ app.set('views', path.join(__dirname, 'views'));
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use(cors());
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({limit: '10mb'}));
+app.use(express.urlencoded({extended: true, limit: '10mb'}));
 
 app.use(helmet()); // apply security headers
 app.use(compression()); // apply response compression
@@ -59,23 +59,19 @@ app.use((req, res, next) => { // Store Express res for Morgan usage
     next();
 });
 const requestFormat = (tokens, req, res) => {
-    const requestId = req.requestId;
     const method = tokens.method(req, res);
     const url = tokens.url(req, res);
-    const timestamp = new Date().toISOString();
     const ip = req.ip;
     const body = JSON.stringify(req.body);
     const params = JSON.stringify(req.params);
     const query = JSON.stringify(req.query);
 
-    return `${colors.yellow(timestamp)} | [REQUEST ID: ${requestId}] | ${colors.cyan(method)} ${colors.cyan(url)} | IP ${colors.magenta(ip)} | Body: ${colors.green(body)} | Params: ${colors.green(params)} | Query: ${colors.green(query)}`;
+    return `${colors.cyan(method)} ${colors.cyan(url)} | IP ${colors.magenta(ip)} | Body: ${colors.green(body)} | Params: ${colors.green(params)} | Query: ${colors.green(query)}`;
 };
 
 const responseFormat = (tokens, req, res) => {
-    const requestId = req.requestId;
     const method = tokens.method(req, res);
     const url = tokens.url(req, res);
-    const timestamp = new Date().toISOString();
     const ip = req.ip;
     let body = res.body || '';
     if (body.length > 1000) {
@@ -85,12 +81,24 @@ const responseFormat = (tokens, req, res) => {
     const contentLength = tokens.res(req, res, 'content-length') || '0';
     const responseTime = Math.trunc(tokens['response-time'](req, res));
 
-    return `${colors.yellow(timestamp)} | [RESPONSE ID: ${requestId}] | ${colors.cyan(method)} ${colors.cyan(url)} | IP ${colors.magenta(ip)} | HTTP ${colors.green(status)} | ${colors.yellow(contentLength + ' B')} | ${colors.red(responseTime)} ms | Body: ${colors.green(body)}`;
+    return `${colors.cyan(method)} ${colors.cyan(url)} | IP ${colors.magenta(ip)} | HTTP ${colors.green(status)} | ${colors.yellow(contentLength + ' B')} | ${colors.red(responseTime)} ms | Body: ${colors.green(body)}`;
 };
 
 // Use morgan with fixed formats
-app.use(morgan(requestFormat, {immediate: true, stream: process.stdout}));  // Log requests immediately
-app.use(morgan(responseFormat, {stream: process.stdout}));  // Log responses after completion
+app.use(morgan(requestFormat, {immediate: true,
+    stream: {
+        write: (message) => {
+            process.stdout.write(message);
+            logger.info(message.trim());
+        }
+    }}));  // Log requests immediately
+app.use(morgan(responseFormat, {
+    stream: {
+        write: (message) => {
+            process.stdout.write(message);
+            logger.info(message.trim());
+        }
+    }}));  // Log responses after completion
 
 // ------ View Routes
 app.get('/', (req, res) => {

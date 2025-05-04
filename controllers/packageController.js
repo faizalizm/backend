@@ -35,11 +35,13 @@ const sendShippingNotification = async (transaction) => {
 };
 
 const getPackage = asyncHandler(async (req, res) => {
+    logger.info('Checking member user type');
     if (req.member.type === "VIP") {
         res.status(400);
         throw new Error('Member is already a VIP');
     }
 
+    logger.info('Fetching packages - Status : Not inactive');
     const vipPackage = await Package.find(
             {
                 type: 'VIP',
@@ -67,52 +69,61 @@ const purchasePackage = asyncHandler(async (req, res) => {
         throw new Error('Package code is required');
     }
 
+    logger.info('Checking member user type');
     if (req.member.type === "VIP") {
         res.status(400);
         throw new Error('Member is already a VIP');
     }
 
+    logger.info('Fetching VIP packages');
     const vipPackage = await Package.findOne(
             {code, type: 'VIP'},
             {name: 1, price: 1, categoryCode: 1, packageCharge: 1, emailContent: 1}
     );
+
     if (!vipPackage) {
         res.status(404);
         throw new Error('Package Not Found');
     }
 
+    logger.info('Overriding package price to RM 250');
     // Temporarily override package price
     vipPackage.price = 25000;
 
     // Find the wallet linked to the member
+    logger.info('Fetching wallet details');
     const wallet = await Wallet.findOne(
             {memberId: req.member._id},
             {paymentCode: 0}
     );
+
     if (!wallet) {
         res.status(404);
         throw new Error('Wallet Not Found');
     }
-
 
     if (paymentChannel === 'HubWallet') {
 
         logger.info(`Wallet Balance: ${wallet.balance}, Package Price: ${vipPackage.price}`);
 
         // Check if wallet balance is sufficient for the package
+        logger.info('Checking wallet balance');
         if (wallet.balance < vipPackage.price) {
             res.status(402); // HTTP 402: Payment Required
             throw new Error('Insufficient funds. Please top up your account.');
         }
 
+        logger.info('Deducting wallet balance');
         wallet.balance -= vipPackage.price;
         await wallet.save();
 
+        logger.info('Upgrading user type');
         req.member.type = 'VIP';
         req.member.vipAt = new Date();
         await req.member.save();
 
         // Create Transaction
+        logger.info('Creating debit transaction');
         const transaction = await Transaction.create({
             walletId: wallet._id,
             systemType: 'HubWallet',
@@ -129,8 +140,10 @@ const purchasePackage = asyncHandler(async (req, res) => {
         processVIPCommision(req.member, vipPackage.price);
 
         if (shippingDetails) {
+            logger.info('Sending shipping notification via email');
             sendShippingNotification(transaction);
         }
+
         res.status(200).json({
             message: 'Package purchased successfully. You have upgraded to VIP!',
             remainingBalance: wallet.balance,
@@ -144,12 +157,14 @@ const purchasePackage = asyncHandler(async (req, res) => {
         throw new Error('Payment channel not available');
         // FPX STOP
 
+        logger.info('Fetching ToyyibPay category');
         const getCategory = await getCategoryToyyib(req, res, vipPackage.categoryCode);
 
         try {
             const billExpiryDate = moment().tz('Asia/Kuala_Lumpur').add(5, 'minutes').format('DD-MM-YYYY HH:mm:ss');
 
             // Create Transaction
+            logger.info('Creating in progress transaction');
             const transaction = await Transaction.create({
                 walletId: wallet._id,
                 systemType: 'FPX',
@@ -175,6 +190,7 @@ const purchasePackage = asyncHandler(async (req, res) => {
             await Transaction.findByIdAndUpdate(transaction._id, {billCode}, {new : true});
 
             // Query to ToyyibPay
+            logger.info('Fetching ToyyibPay transaction status');
             getBillTransactionsToyyib(req.member._id, wallet._id, vipPackage.price, billCode, "VIP Payment");
 
             // Return the response to the client
@@ -195,6 +211,7 @@ const purchasePackage = asyncHandler(async (req, res) => {
 });
 
 const purchaseCallbackPackage = asyncHandler(async (req, res) => {
+    logger.info('Receiving ToyyibPay callback');
     res.status(200).json({message: 'OK'});
 });
 

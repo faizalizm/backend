@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const asyncHandler = require('express-async-handler');
+const sharp = require('sharp');
 
 const {logger} = require('../services/logger');
 
@@ -28,6 +29,7 @@ const searchMerchant = asyncHandler(async (req, res) => {
     );
 
     // Check if the provided field is valid
+    logger.info('Checking if field is allowed');
     if (!validFields.includes(field)) {
         res.status(400);
         throw new Error('Invalid search field');
@@ -41,8 +43,10 @@ const searchMerchant = asyncHandler(async (req, res) => {
         // Perform the search
         let merchants;
         let hasNextPage;
+
+        logger.info(`Fetching merchants - Field : ${field}, Term : ${term}, Page : ${page}, Limit : ${limit}`);
 //        if (!page && !limit) {
-            merchants = await Merchant.find(searchQuery, {_id: 0, memberId: 0, spendingCode: 0});
+        merchants = await Merchant.find(searchQuery, {_id: 0, memberId: 0, spendingCode: 0});
 //        } else {
 //            // Fetch one extra to detect if there's a next page
 //            const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -54,9 +58,16 @@ const searchMerchant = asyncHandler(async (req, res) => {
 //            merchants = hasNextPage ? result.slice(0, limit) : result;
 //        }
 
+        logger.info('Resizing merchant logo');
+        for (const merchant of merchants) {
+            if (merchant.logo) {
+                merchant.logo = await resizeBase64Image(merchant.logo, 300);
+            }
+        }
+
         if (merchants.length > 0) {
 //            if (!page && !limit) {
-                res.status(200).json(merchants);
+            res.status(200).json(merchants);
 //            } else {
 //                res.status(200).json({
 //                    page: parseInt(page),
@@ -67,7 +78,7 @@ const searchMerchant = asyncHandler(async (req, res) => {
 //            }
         } else {
             res.status(404);
-            throw new Error('No Merchant Found');
+            throw new Error('No merchant found');
         }
     } catch (error) {
         res.status(500);
@@ -76,9 +87,11 @@ const searchMerchant = asyncHandler(async (req, res) => {
 });
 
 const getMerchant = asyncHandler(async (req, res) => {
+    logger.info('Fetching merchant details');
     const merchant = await Merchant.findOne({memberId: req.member._id}, {_id: 0, memberId: 0, spendingCode: 0, __v: 0});
 
     if (merchant) {
+        logger.info(`Merchant - ${merchant.name}`);
         res.status(200).json(merchant);
     } else {
         res.status(404);
@@ -87,6 +100,7 @@ const getMerchant = asyncHandler(async (req, res) => {
 });
 
 const registerMerchant = asyncHandler(async (req, res) => {
+    logger.info('Fetching merchant details');
     const existingMerchant = await Merchant.findOne({memberId: req.member._id}, {_id: 1});
     if (existingMerchant) {
         res.status(400);
@@ -94,6 +108,7 @@ const registerMerchant = asyncHandler(async (req, res) => {
     }
 
     // Generate Spending Code
+    logger.info('Generating spending code');
     let isSpendingCodeUnique = false;
     let spendingCode;
     while (!isSpendingCodeUnique) {
@@ -110,8 +125,12 @@ const registerMerchant = asyncHandler(async (req, res) => {
     }
 
     try {
-        const merchantData = {...req.body, spendingCode, memberId: req.member._id};
-        const merchant = await Merchant.create(merchantData);
+        logger.info('Creating merchant');
+        const merchant = await Merchant.create({
+            ...req.body,
+            spendingCode,
+            memberId: req.member._id
+        });
 
         res.status(200).json(merchant);
     } catch (error) {
@@ -125,6 +144,7 @@ const updateMerchant = asyncHandler(async (req, res) => {
     const {_id, memberId, createdAt, updatedAt, spendingCode, ...updates} = req.body;
 
     // Find merchant
+    logger.info('Fetching merchant details');
     const merchant = await Merchant.findOne({memberId: req.member._id},
             {spendingCode: 0}
     );
@@ -135,6 +155,7 @@ const updateMerchant = asyncHandler(async (req, res) => {
 
     // Update merchant
     try {
+        logger.info('Updating merchant details');
         const updatedMerchant = await Merchant.findByIdAndUpdate(merchant._id, updates, {
             new : true,
             runValidators: true // Ensures schema validation is applied
@@ -171,30 +192,35 @@ const qrSpending = asyncHandler(async (req, res) => {
         throw new Error('QR code is not valid');
     }
 
+    logger.info(`Fetching sender details`);
     const senderMerchant = await Merchant.findOne({memberId: req.member._id}, {_id: 1, memberId: 1, spendingCode: 1});
 
+    logger.info('Fetching sender wallet details');
     const senderWallet = await Wallet.findOne({memberId: req.member._id});
     if (!senderWallet) {
         res.status(404);
-        throw new Error('Sender Wallet Not Found');
+        throw new Error('Sender wallet not found');
     }
 
     // Check if wallet balance is sufficient for the qr payment
+    logger.info(`Checking wallet balance - Sender balance : RM ${senderWallet.balance / 100}, Transfer amount : RM ${amount / 100}`);
     if (senderWallet.balance < amount) {
         res.status(402); // HTTP 402: Payment Required
         throw new Error('Insufficient funds');
     }
 
+    logger.info('Fetching merchant details');
     const recipientMerchant = await Merchant.findOne({spendingCode}, {_id: 1, memberId: 1, spendingCode: 1, cashbackRate: 1});
     if (!recipientMerchant) {
         res.status(404);
-        throw new Error('Merchant Not Found');
+        throw new Error('Merchant not found');
     }
+    logger.info(`Merchant : ${recipientMerchant.name}`);
 
     const recipientWallet = await Wallet.findOne({memberId: recipientMerchant.memberId});
     if (!recipientWallet) {
         res.status(404);
-        throw new Error('Recipient Not Found');
+        throw new Error('Merchant not found');
     } else if (senderMerchant && spendingCode.trim() === senderMerchant.spendingCode) {
         res.status(400);
         throw new Error('Could not transfer to your own account');
@@ -202,6 +228,7 @@ const qrSpending = asyncHandler(async (req, res) => {
 
     const description = 'Merchant QR Payment';
 
+    logger.info('Creating sender debit transaction');
     const senderTransaction = await Transaction.create({
         walletId: senderWallet._id,
         systemType: 'HubWallet',
@@ -212,7 +239,12 @@ const qrSpending = asyncHandler(async (req, res) => {
         amount: amount
     });
 
-    const receivingAmount = amount - (amount * recipientMerchant.cashbackRate / 100);
+    const cashbackAmount = amount * recipientMerchant.cashbackRate / 100;
+    const receivingAmount = amount - (cashbackAmount);
+    logger.info(`Cashback rate : ${recipientMerchant.cashbackRate} %, Cashback amount: RM ${cashbackAmount / 100}`);
+    logger.info(`Merchant balance : RM ${recipientWallet.balance / 100}, Receiving amount: RM ${receivingAmount / 100}`);
+
+    logger.info('Creating merchant credit transaction');
     const recipientTransaction = await Transaction.create({
         walletId: recipientWallet._id,
         systemType: 'HubWallet',
@@ -225,17 +257,16 @@ const qrSpending = asyncHandler(async (req, res) => {
 
     if (senderTransaction && recipientTransaction) {
 
-        logger.info(`Sender Balance: ${senderWallet.balance}, Transfer Amount: ${amount}`);
-        logger.info(`Recipient Balance: ${recipientWallet.balance}, Cashback Rate : ${recipientMerchant.cashbackRate}, Receiving Amount: ${receivingAmount}`);
-
+        logger.info('Deducting sender wallet balance');
         senderWallet.balance -= Number(amount);
         await senderWallet.save();
 
+        logger.info('Adding merchant wallet balance');
         recipientWallet.balance += Number(receivingAmount);
         await recipientWallet.save();
 
-        logger.info(`New Sender Balance: ${senderWallet.balance}`);
-        logger.info(`New Recipient Balance: ${recipientWallet.balance}`);
+        logger.info(`New sender balance: ${senderWallet.balance}`);
+        logger.info(`New merchant balance: ${recipientWallet.balance}`);
 
         // Process spending reward (Asynchronously)
         processSpendingReward(senderWallet, req.member, recipientMerchant.cashbackRate, amount);
@@ -252,11 +283,13 @@ const qrSpending = asyncHandler(async (req, res) => {
 
 const genQRCode = asyncHandler(async (req, res) => {
     // Find the merchant linked to the member
+    logger.info('Fetching merchant details');
     const merchant = await Merchant.findOne({memberId: req.member._id}, {_id: 0, name: 1, spendingCode: 1, cashbackRate: 1});
     if (!merchant) {
         res.status(404);
-        throw new Error('Merchant Not Found');
+        throw new Error('Merchant not found');
     }
+    logger.info(`Merchant - ${merchant.name}`);
 
     try {
         res.status(200).json(merchant);
@@ -270,6 +303,24 @@ const generateSpendingCode = () => {
     const length = 64;
     const randomString = crypto.randomBytes(length).toString('base64').slice(0, length); // Generate a 64-character base64 string
     return randomString.replace(/\+/g, '0').replace(/\//g, '1'); // Replace unsafe characters to avoid issues
+};
+
+const resizeBase64Image = async (base64, width) => {
+    const matches = base64.match(/^data:image\/(jpeg|jpg|png);base64,(.+)$/);
+    if (!matches)
+        return base64; // fallback
+
+    const mime = matches[1];
+    const data = matches[2];
+
+    const buffer = Buffer.from(data, 'base64');
+
+    const resizedBuffer = await sharp(buffer)
+            .resize({width}) // e.g., 300 for phone/tablet
+            .jpeg({quality: 80}) // convert to smaller jpeg
+            .toBuffer();
+
+    return `data:image/jpeg;base64,${resizedBuffer.toString('base64')}`;
 };
 
 module.exports = {searchMerchant, getMerchant, registerMerchant, updateMerchant, qrSpending, genQRCode};

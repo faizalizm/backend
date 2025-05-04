@@ -27,6 +27,7 @@ const MasterCharity = require('../models/masterCharityModel');
 
 const getCharity = asyncHandler(async (req, res) => {
     try {
+        logger.info('Fetching Master Charity');
         const masterCharity = await MasterCharity.findOne({}, {_id: 0, __v: 0});
         if (!masterCharity) {
             res.status(404);
@@ -42,6 +43,7 @@ const getCharity = asyncHandler(async (req, res) => {
 
 const getCharityGallery = asyncHandler(async (req, res) => {
     try {
+        logger.info('Fetching Charity Gallery - Status : Active');
         const charity = await Charity.find({status: "Active"}, {_id: 0, __v: 0});
         if (!charity) {
             res.status(404);

@@ -1,6 +1,8 @@
 const asyncHandler = require('express-async-handler');
 const os = require('os');
 
+const {logger} = require('../services/logger');
+
 // Convert uptime (in seconds) to a human-readable string (e.g., "1d 2h 15m 30s")
 const getReadableUptime = () => {
     const uptimeSeconds = process.uptime();
@@ -17,7 +19,11 @@ const getReadableMemory = (bytes) => {
 };
 
 const getHealth = asyncHandler(async (req, res) => {
+
+    logger.info('Fetching memory usage');
     const memUsage = process.memoryUsage();
+
+    logger.info('Fetching cpu information');
     const cpus = os.cpus().map(cpu => ({
             model: cpu.model,
             speed: `${cpu.speed} MHz`
@@ -37,13 +43,14 @@ const getHealth = asyncHandler(async (req, res) => {
         totalMemory: getReadableMemory(os.totalmem()), // total system memory in MB
         freeMemory: getReadableMemory(os.freemem()), // free memory in MB
         cpuUsage: process.cpuUsage(), // CPU usage in microseconds since process start
-        platform: os.platform(), // e.g., 'linux'
-        osRelease: os.release(), // OS version
-        cpus: cpus, // array of CPU info (model and speed)
-        networkInterfaces: os.networkInterfaces(), // network interfaces and addresses
-        timestamp: new Date().toISOString()             // current timestamp
+        // platform: os.platform(), // e.g., 'linux'
+        // osRelease: os.release(), // OS version
+        // cpus: cpus, // array of CPU info (model and speed)
+        // networkInterfaces: os.networkInterfaces(), // network interfaces and addresses
+        // timestamp: new Date().toISOString()             // current timestamp
     };
 
+    logger.info(`Health Data : ${JSON.stringify(healthData, null, 8)}`);
     res.status(200).json(healthData);
 });
 
