@@ -38,6 +38,7 @@ app.use(express.urlencoded({extended: true, limit: '10mb'}));
 
 app.use(helmet()); // apply security headers
 app.use(compression()); // apply response compression
+app.set('trust proxy', true); // trust nginx proxy
 
 app.use((req, res, next) => {
     req.requestId = crypto.randomBytes(4).toString('hex').toUpperCase(); // 8-character ID
@@ -116,7 +117,8 @@ app.use('/api/v1/package', require('./routes/packageRoutes'));
 app.use('/api/v1/wallet', require('./routes/walletRoutes'));
 app.use('/api/v1/points', require('./routes/pointsRoutes'));
 app.use('/api/v1/charity', require('./routes/charityRoutes'));
-app.use('/api/v1/health', require('./routes/healthRoutes'));
+app.use('/api/v1/advert', require('./routes/advertRoutes'));
+app.use('/api/v1/system', require('./routes/systemRoutes'));
 
 app.use(errorHandler);
 

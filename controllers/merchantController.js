@@ -1,8 +1,8 @@
 const crypto = require('crypto');
 const asyncHandler = require('express-async-handler');
-const sharp = require('sharp');
 
 const {logger} = require('../services/logger');
+const {resizeImage} = require('../services/sharp');
 
 const Member = require('../models/memberModel');
 const Merchant = require('../models/merchantModel');
@@ -61,7 +61,7 @@ const searchMerchant = asyncHandler(async (req, res) => {
         logger.info('Resizing merchant logo');
         for (const merchant of merchants) {
             if (merchant.logo) {
-                merchant.logo = await resizeBase64Image(merchant.logo, 300);
+                merchant.logo = await resizeImage(merchant.logo, process.env.IMAGE_WIDTH_MERCHANT_LIST, process.env.IMAGE_QUALITY_MERCHANT_LIST);
             }
         }
 
@@ -303,24 +303,6 @@ const generateSpendingCode = () => {
     const length = 64;
     const randomString = crypto.randomBytes(length).toString('base64').slice(0, length); // Generate a 64-character base64 string
     return randomString.replace(/\+/g, '0').replace(/\//g, '1'); // Replace unsafe characters to avoid issues
-};
-
-const resizeBase64Image = async (base64, width) => {
-    const matches = base64.match(/^data:image\/(jpeg|jpg|png);base64,(.+)$/);
-    if (!matches)
-        return base64; // fallback
-
-    const mime = matches[1];
-    const data = matches[2];
-
-    const buffer = Buffer.from(data, 'base64');
-
-    const resizedBuffer = await sharp(buffer)
-            .resize({width}) // e.g., 300 for phone/tablet
-            .jpeg({quality: 80}) // convert to smaller jpeg
-            .toBuffer();
-
-    return `data:image/jpeg;base64,${resizedBuffer.toString('base64')}`;
 };
 
 module.exports = {searchMerchant, getMerchant, registerMerchant, updateMerchant, qrSpending, genQRCode};

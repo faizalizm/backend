@@ -9,6 +9,7 @@ const path = require('path');
 const {logger} = require('../services/logger');
 const {sendMail} = require('../services/nodemailer');
 const {setTokenOnLogin} = require('../services/firebaseCloudMessage');
+const {resizeImage} = require('../services/sharp');
 
 const Member = require('../models/memberModel');
 const Wallet = require('../models/walletModel');
@@ -507,6 +508,11 @@ const getMember = asyncHandler(async (req, res) => {
             if (referrer) {
                 member.referredBy = referrer.fullName;
             }
+        }
+
+        if (member.profilePicture) {
+            logger.info('Resizing packages picture');
+            member.profilePicture.picture = await resizeImage(member.profilePicture, process.env.IMAGE_WIDTH_MEMBER_PROFILE, process.env.IMAGE_QUALITY_MEMBER_PROFILE);
         }
 
         res.status(200).json(member);

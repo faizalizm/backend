@@ -6,6 +6,7 @@ const path = require('path');
 const {logger} = require('../services/logger');
 const {sendMail} = require('../services/nodemailer');
 const {getCategoryToyyib, createBillToyyib, getBillTransactionsToyyib} = require('../services/toyyibpay');
+const {resizeImage} = require('../services/sharp');
 
 const Package = require('../models/packageModel');
 const Wallet = require('../models/walletModel');
@@ -28,7 +29,6 @@ const sendShippingNotification = async (transaction) => {
     htmlContent = htmlContent.replace('${postCode}', `${transaction.shippingDetails.postCode}`);
     htmlContent = htmlContent.replace('${country}', `${transaction.shippingDetails.country}`);
 
-
     let mailId = 'shipping';
     let subject = 'Reward Hub Shipping Notification';
     await sendMail(mailId, subject, htmlContent);
@@ -49,6 +49,13 @@ const getPackage = asyncHandler(async (req, res) => {
             },
             {_id: 0, picture: 1, type: 1, name: 1, description: 1, price: 1, code: 1}
     );
+
+    logger.info('Resizing packages picture');
+    for (const package of vipPackage) {
+        if (package.picture) {
+            package.picture = await resizeImage(package.picture, process.env.IMAGE_WIDTH_PACKAGE_LIST, process.env.IMAGE_QUALITY_PACKAGE_LIST);
+        }
+    }
 
     if (vipPackage.length > 0) {
         res.status(200).json(vipPackage);
