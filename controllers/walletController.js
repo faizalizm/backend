@@ -16,6 +16,7 @@ const Merchant = require('../models/merchantModel');
 
 const getWallet = asyncHandler(async (req, res) => {
     // Find the wallet linked to the member
+    logger.info('Fetching wallet details');
     const wallet = await Wallet.findOne({memberId: req.member._id});
     if (!wallet) {
         res.status(404);
@@ -25,9 +26,9 @@ const getWallet = asyncHandler(async (req, res) => {
     // Calculate the date 90 days ago
     const ninetyDaysAgo = new Date();
     ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
-    logger.info('Ninety Days Ago: ' + ninetyDaysAgo);
 
     // Find all transactions linked to the wallet
+    logger.info('Fetching points history - Status : Success / In Progress, 90d Ago : ' + ninetyDaysAgo);
     const transactions = await Transaction.find({
         $or: [
             // Withdrawals: Include 'Success' and 'In Progress'
@@ -93,28 +94,33 @@ const topupWallet = asyncHandler(async (req, res) => {
         throw new Error('Payment channel not supported');
     }
 
+    logger.info('Fetching topup package');
     const vipPackage = await Package.findOne(
             {type: 'Topup'},
             {name: 1, code: 1, categoryCode: 1, packageCharge: 1, emailContent: 1}
     );
+
     if (!vipPackage) {
         res.status(500);
         throw new Error('Package not found');
     }
 
     // Find the wallet linked to the member
+    logger.info('Fetching wallet detail');
     const wallet = await Wallet.findOne({memberId: req.member._id});
     if (!wallet) {
         res.status(500);
         throw new Error('Wallet Not Found');
     }
 
+    logger.info('Fetching ToyyibPay category');
     const getCategory = await getCategoryToyyib(req, res, vipPackage.categoryCode);
 
     try {
         const billExpiryDate = moment().tz('Asia/Kuala_Lumpur').add(5, 'minutes').format('DD-MM-YYYY HH:mm:ss');
 
         // Create Transaction
+        logger.info('Creating topup in progress transaction');
         const transaction = await Transaction.create({
             walletId: wallet._id,
             systemType: 'HubWallet',
@@ -130,6 +136,7 @@ const topupWallet = asyncHandler(async (req, res) => {
             throw new Error('Failed to create transaction, please try again later');
         }
 
+        logger.info('Creating ToyyibPay Bill');
         const createBill = await createBillToyyib(req, res, amount, vipPackage, getCategory, billExpiryDate);
         const billCode = createBill.data[0].BillCode;
         const paymentUrl = process.env.TOYYIB_URL + '/' + billCode;
@@ -138,6 +145,7 @@ const topupWallet = asyncHandler(async (req, res) => {
         await Transaction.findByIdAndUpdate(transaction._id, {billCode}, {new : true});
 
         // Query to ToyyibPay
+        logger.info('Fetching ToyyibPay transaction status');
         getBillTransactionsToyyib(req.member._id, wallet._id, amount, billCode, "Top Up");
 
         // Return the response to the client
@@ -164,12 +172,14 @@ const withdrawWallet = asyncHandler(async (req, res) => {
         throw new Error('Invalid withdrawal amount');
     }
 
+    logger.info(`Checking minimum withdrawal - Amount : ${amount}, Minimum withdrawal : ${minWithdrawal}`);
     if (amount < minWithdrawal) {
         res.status(400);
         throw new Error(`Amount must be at least ${minWithdrawal}`);
     }
 
     // Find the wallet linked to the member
+    logger.info('Fetching wallet details');
     const wallet = await Wallet.findOne({memberId: req.member._id}, {paymentCode: 0});
     if (!wallet) {
         res.status(404);
@@ -217,7 +227,7 @@ const withdrawWallet = asyncHandler(async (req, res) => {
         throw new Error('Withdraw channel not supported');
     }
 
-    logger.info(`Wallet Balance: ${wallet.balance}, Withdrawal Amount: ${amount}`);
+    logger.info(`Wallet balance: ${wallet.balance}, Withdrawal amount: ${amount}`);
     // Check if wallet balance is sufficient for the withdrawal
     if (wallet.balance < amount) {
         res.status(402); // HTTP 402: Payment Required
@@ -226,6 +236,7 @@ const withdrawWallet = asyncHandler(async (req, res) => {
 
     try {
         transactionData.withdrawalDetails.type = withdrawChannel;
+        logger.info('Creating wallet debit transaction');
         const transaction = await Transaction.create(transactionData);
 
         if (!transaction) {
@@ -237,6 +248,7 @@ const withdrawWallet = asyncHandler(async (req, res) => {
         await wallet.save();
 
         // Notify Admin (Asynchronously)
+        logger.info('Sending withdrawal notification via email');
         sendWithdrawalNotification(req.member, transaction);
 
         res.status(200).json({
@@ -258,32 +270,37 @@ const transferVerification = asyncHandler(async(req, res) => {
     let merchant;
 
     if (spendingCode) {
+        logger.info('Merchant QR Payment');
         if (!spendingCode.startsWith('spend://')) {
             res.status(400);
             throw new Error('QR code is not valid');
         }
 
+        logger.info('Fetching merchant details');
         merchant = await Merchant.findOne({spendingCode}, {_id: 0, memberId: 1, name: 1, cashbackRate: 1});
         if (!merchant) {
             res.status(404);
-            throw new Error('Merchant Not Found');
+            throw new Error('Merchant not found');
         }
+        logger.info(`Merchant - ${merchant.name}`);
 
         recipientWallet = await Wallet.findOne({memberId: merchant.memberId});
 
         if (!recipientWallet) {
             res.status(404);
-            throw new Error('Recipient Not Found');
+            throw new Error('Recipient not found');
         } else if (recipientWallet.memberId === req.member._id) {
             res.status(400);
             throw new Error('Could not transfer to your own account');
         }
     } else if (paymentCode) {
+        logger.info('QR Transaction');
         if (!paymentCode.startsWith('payment://')) {
             res.status(400);
             throw new Error('QR code is not valid');
         }
 
+        logger.info('Fetching recipient wallet details');
         recipientWallet = await Wallet.findOne({paymentCode});
 
         if (!recipientWallet) {
@@ -294,12 +311,13 @@ const transferVerification = asyncHandler(async(req, res) => {
             throw new Error('Could not transfer to your own account');
         }
     } else {
-        // Case 2: Sending via entered value (email or phone)
+        logger.info('Transfer via email/phone');
         if (!email && !phone) {
             res.status(400).json({error: 'Email or phone is required for transfer'});
             return;
         }
 
+        logger.info('Checking recipient is ownself');
         if ((email && email.trim() === req.member.email)
                 || phone && phone.trim() === req.member.phone) {
             res.status(400);
@@ -307,6 +325,7 @@ const transferVerification = asyncHandler(async(req, res) => {
         }
     }
 
+    logger.info('Fetching recipient details');
     let recipient;
     if (paymentCode || spendingCode) {
         recipient = await Member.findOne({_id: recipientWallet.memberId}, {fullName: 1, email: 1, phone: 1});
@@ -350,6 +369,7 @@ const transferWallet = asyncHandler(async (req, res) => {
         throw new Error('Could not transfer to your own account');
     }
 
+    logger.info('Fetching recipient details');
     let description;
     let recipient;
     if (phone) {
@@ -365,24 +385,28 @@ const transferWallet = asyncHandler(async (req, res) => {
         throw new Error('Recipient Not Found');
     }
 
+    logger.info('Fetching sender wallet details');
     const senderWallet = await Wallet.findOne({memberId: req.member._id});
     if (!senderWallet) {
         res.status(404);
-        throw new Error('Sender Wallet Not Found');
+        throw new Error('Sender wallet not found');
     }
 
+    logger.info('Fetching recipient wallet details');
     const recipientWallet = await Wallet.findOne({memberId: recipient._id});
     if (!recipientWallet) {
         res.status(404);
-        throw new Error('Recipient Wallet Not Found');
+        throw new Error('Recipient wallet not found');
     }
 
     // Check if wallet balance is sufficient for the withdrawal
+    logger.info(`Checking wallet balance - Sender balance : RM ${senderWallet.balance / 100}, Transfer amount : RM ${amount / 100}`);
     if (senderWallet.balance < amount) {
         res.status(402); // HTTP 402: Payment Required
         throw new Error('Insufficient funds');
     }
 
+    logger.info('Creating sender debit transaction');
     const senderTransaction = await Transaction.create({
         walletId: senderWallet._id,
         systemType: 'HubWallet',
@@ -393,6 +417,8 @@ const transferWallet = asyncHandler(async (req, res) => {
         amount: amount
     });
 
+    logger.info(`Recipient balance : RM ${recipientWallet.balance / 100}, Receiving amount : RM ${amount / 100}`);
+    logger.info('Creating recipient credit transaction');
     const recipientTransaction = await Transaction.create({
         walletId: recipientWallet._id,
         systemType: 'HubWallet',
@@ -405,12 +431,11 @@ const transferWallet = asyncHandler(async (req, res) => {
 
     if (senderTransaction && recipientTransaction) {
 
-        logger.info(`Sender Balance: ${senderWallet.balance}, Transfer Amount: ${amount}`);
-        logger.info(`Recipient Balance: ${recipientWallet.balance}, Transer Amount: ${amount}`);
-
+        logger.info('Deducting sender wallet balance');
         senderWallet.balance -= Number(amount);
         await senderWallet.save();
 
+        logger.info('Adding recipient wallet balance');
         recipientWallet.balance += Number(amount);
         await recipientWallet.save();
 
@@ -418,6 +443,7 @@ const transferWallet = asyncHandler(async (req, res) => {
         logger.info(`New Recipient Balance: ${recipientWallet.balance}`);
 
         // Send FCM
+        logger.info('Notifying recipient via FCM');
         const message = buildTransferMessage(amount);
         sendMessage(message, recipient);
 
@@ -447,6 +473,7 @@ const qrPayment = asyncHandler(async (req, res) => {
         throw new Error('QR code is not valid');
     }
 
+    logger.info('Fetching sender wallet details');
     const senderWallet = await Wallet.findOne({memberId: req.member._id});
     if (!senderWallet) {
         res.status(404);
@@ -454,12 +481,13 @@ const qrPayment = asyncHandler(async (req, res) => {
     }
 
     // Check if wallet balance is sufficient for the qr payment
-    logger.info(`Sender wallet balance : ${senderWallet.balance}`);
+    logger.info(`Checking wallet balance - Sender balance : RM ${senderWallet.balance / 100}, QR payment amount : RM ${amount / 100}`);
     if (senderWallet.balance < amount) {
         res.status(402); // HTTP 402: Payment Required
         throw new Error('Insufficient funds');
     }
 
+    logger.info('Fetching recipient wallet details');
     const recipientWallet = await Wallet.findOne({paymentCode});
     if (!recipientWallet) {
         res.status(404);
@@ -468,8 +496,9 @@ const qrPayment = asyncHandler(async (req, res) => {
         res.status(400);
         throw new Error('Could not transfer to your own account');
     }
-    logger.info(`Recipient wallet balance : ${recipientWallet.balance}`);
+    logger.info(`Recipient balance : RM ${recipientWallet.balance / 100}, Receiving amount : RM ${amount / 100}`);
 
+    logger.info('Fetching recipient details');
     const recipient = await Member.findOne({_id: recipientWallet.memberId}, {fullName: 1, email: 1, phone: 1});
     if (!recipient) {
         res.status(404);
@@ -478,6 +507,7 @@ const qrPayment = asyncHandler(async (req, res) => {
 
     const description = 'QR Payment';
 
+    logger.info('Creating sender debit transaction');
     const senderTransaction = await Transaction.create({
         walletId: senderWallet._id,
         systemType: 'HubWallet',
@@ -488,6 +518,7 @@ const qrPayment = asyncHandler(async (req, res) => {
         amount: amount
     });
 
+    logger.info('Creating merchant credit transaction');
     const recipientTransaction = await Transaction.create({
         walletId: recipientWallet._id,
         systemType: 'HubWallet',
@@ -500,12 +531,11 @@ const qrPayment = asyncHandler(async (req, res) => {
 
     if (senderTransaction && recipientTransaction) {
 
-        logger.info(`Sender Balance: ${senderWallet.balance}, Transfer Amount: ${amount}`);
-        logger.info(`Recipient Balance: ${recipientWallet.balance}, Transfer Amount: ${amount}`);
-
+        logger.info('Deducting sender wallet balance');
         senderWallet.balance -= Number(amount);
         await senderWallet.save();
 
+        logger.info('Adding recipient wallet balance');
         recipientWallet.balance += Number(amount);
         await recipientWallet.save();
 
@@ -513,6 +543,7 @@ const qrPayment = asyncHandler(async (req, res) => {
         logger.info(`New Recipient Balance: ${recipientWallet.balance}`);
 
         // Send FCM
+        logger.info('Notifying recipient via FCM');
         const message = buildQRPaymentMessage(amount);
         sendMessage(message, recipient);
 
@@ -528,6 +559,7 @@ const qrPayment = asyncHandler(async (req, res) => {
 
 const genQRCode = asyncHandler(async (req, res) => {
     // Find the wallet linked to the member
+    logger.info('Fetching wallet details');
     const wallet = await Wallet.findOne({memberId: req.member._id});
     if (!wallet) {
         res.status(404);

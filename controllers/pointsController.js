@@ -8,6 +8,7 @@ const Transaction = require('../models/transactionModel');
 
 const getPoints = asyncHandler(async (req, res) => {
     // Find the wallet linked to the member
+    logger.info('Fetching wallet details');
     const wallet = await Wallet.findOne({memberId: req.member._id});
     if (!wallet) {
         res.status(404);
@@ -17,9 +18,9 @@ const getPoints = asyncHandler(async (req, res) => {
     // Calculate the date 90 days ago
     const ninetyDaysAgo = new Date();
     ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
-    logger.info('Ninety Days Ago: ' + ninetyDaysAgo);
 
     // Find all transactions linked to the wallet
+    logger.info('Fetching points history - Status : Success / In Progress, 90d Ago : ' + ninetyDaysAgo);
     const transactions = await Transaction.find({
         systemType: 'HubPoints',
         walletId: wallet._id,
@@ -57,27 +58,31 @@ const redeemPoints = asyncHandler(async (req, res) => {
         throw new Error('Invalid value of points to redeem');
     }
 
+    logger.info(`Checking minimum redemption - Points : ${points}, Minimum redemption : ${minRedemptionAmount}`);
     if (points < minRedemptionAmount) {
         res.status(400);
         throw new Error(`Points must be at least ${minRedemptionAmount} to redeem`);
     }
 
     // Find the wallet linked to the member
+    logger.info('Fetching wallet details');
     const wallet = await Wallet.findOne({memberId: req.member._id}, {_id: 1, balance: 1, points: 1});
     if (!wallet) {
         res.status(404);
         throw new Error('Wallet Not Found');
     }
 
-    logger.info(`Points Available : ${wallet.points}, Points to Convert : ${points}`);
+    logger.info(`Points available : ${wallet.points}, Points to redeem : ${points}`);
 
     // Check if wallet balance is sufficient for the withdrawal
+    logger.info('Checking points balance');
     if (wallet.points < points) {
         res.status(402); // HTTP 402: Payment Required
         throw new Error('Insufficient points to convert');
     }
 
     try {
+        logger.info('Creating debit point transaction');
         const pointsTransaction = await Transaction.create({
                         walletId: wallet._id,
                         systemType: 'HubPoints',
@@ -87,6 +92,7 @@ const redeemPoints = asyncHandler(async (req, res) => {
                         amount: points
                 });
 
+        logger.info('Creating credit cash transaction');
         const walletTransaction = await Transaction.create({
                         walletId: wallet._id,
                         systemType: 'HubWallet',
@@ -101,7 +107,10 @@ const redeemPoints = asyncHandler(async (req, res) => {
             throw new Error('Failed to create transaction');
         }
 
+        logger.info('Deducting points balance');
         wallet.points -= Number(points);
+
+        logger.info('Adding cash balance');
         wallet.balance += Number(points);
         await wallet.save();
 

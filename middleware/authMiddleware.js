@@ -35,6 +35,8 @@ const protect = asyncHandler(async (req, res, next) => {
                 res.status(401);
                 throw new Error('Member not found');
             }
+            
+            logger.info(`Member : ${member.fullName}, Email : ${member.email}`);
 
             // Attach the member to the request object
             req.member = member;

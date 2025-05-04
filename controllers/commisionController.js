@@ -38,10 +38,10 @@ const processVIPCommision = async (member, amount) => {
             // Calculate the commission for this payoutLevel
             const percentage = percentages[payoutLevel] ?? 0; // If percentage not specied, then 0 commission
             const commission = (amount * percentage) / 100;
-            logger.info(`Commision : RM ${(commission / 100).toFixed(2)}`);
+            logger.info(`Commision : RM ${(commission / 100)}`);
 
             if (commission / 100 < 0.01) {
-                logger.info(`Commision RM ${(commission / 100).toFixed(2)} too small to distribute to ${uplineMember.fullName} (Level ${level + 1})`);
+                logger.info(`Commision RM ${(commission / 100)} too small to distribute to ${uplineMember.fullName} (Level ${level + 1})`);
 
                 // Move to the next upline
                 currentMember = uplineMember.referredBy;
@@ -52,11 +52,12 @@ const processVIPCommision = async (member, amount) => {
             } else {
                 const uplineWallet = await Wallet.findOne({memberId: uplineMember._id}).select('balance');
                 if (!uplineWallet) {
-                    logger.info(`Wallet not found for upline member ${uplineMember.fullName}`);
+                    logger.error(`Wallet not found for upline member ${uplineMember.fullName}`);
                 } else {
                     uplineWallet.balance = Number(uplineWallet.balance) + commission;
                     await uplineWallet.save();
 
+                    logger.info('Creating credit transaction');
                     await Transaction.create({
                         walletId: uplineWallet._id,
                         systemType: 'HubWallet',
@@ -72,8 +73,9 @@ const processVIPCommision = async (member, amount) => {
                     sendMessage(message, uplineMember);
 
                     logger.info(`Upline Member ${uplineMember.fullName} (Level ${level + 1}) received ${percentage}% (RM ${(commission / 100).toFixed(2)})`);
-                    
+
                     // payoutLevel increases only when a VIP receives commission
+                    logger.info('Bonus will be passed up');
                     payoutLevel++;
                 }
             }
@@ -118,7 +120,7 @@ const processSpendingReward = async (spenderWallet, member, cashbackRate, amount
 
     // add to charity - increase charity and count
     updateMasterCharity(charitableContribution);
-    
+
     // add to mdr - increase amount
     updateMasterMdr(mdrAmount);
 
@@ -148,6 +150,7 @@ const processSpendingReward = async (spenderWallet, member, cashbackRate, amount
             // Calculate the commission for this level
             const percentage = percentages[level] ?? 0; // If percentage not specied, then 0 commission
             const commission = amount * (cashbackRate / 100) * (percentage / 100);
+            logger.info(`Commision : RM ${(commission / 100)}`);
 
             if (commission / 100 < 0.01) {
                 logger.info(`Commision RM ${(commission / 100)} too small to distribute to ${uplineMember.fullName} (Level ${level + 1})`);
@@ -161,11 +164,12 @@ const processSpendingReward = async (spenderWallet, member, cashbackRate, amount
             } else {
                 const uplineWallet = await Wallet.findOne({memberId: uplineMember._id}).select('balance');
                 if (!uplineWallet) {
-                    logger.info(`Wallet not found for upline member ${uplineMember.fullName}`);
+                    logger.error(`Wallet not found for upline member ${uplineMember.fullName}`);
                 } else {
                     uplineWallet.balance = Number(uplineWallet.balance) + commission;
                     await uplineWallet.save();
 
+                    logger.info('Creating credit transaction');
                     await Transaction.create({
                         walletId: uplineWallet._id,
                         systemType: 'HubWallet',

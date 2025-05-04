@@ -109,10 +109,10 @@ const transactionSchema = new mongoose.Schema({
 transactionSchema.set('toJSON', {
     transform: function (doc, ret) {
         if (ret.createdAt) {
-            ret.createdAt = moment(ret.createdAt).tz(process.env.TIMEZONE).format(process.env.TIMESTAMP_FORMAT);
+            ret.createdAt = moment(ret.createdAt).tz(process.env.TIMEZONE).format(process.env.TIMESTAMP_FORMAT_DISPLAY);
         }
         if (ret.updatedAt) {
-            ret.updatedAt = moment(ret.updatedAt).tz(process.env.TIMEZONE).format(process.env.TIMESTAMP_FORMAT);
+            ret.updatedAt = moment(ret.updatedAt).tz(process.env.TIMEZONE).format(process.env.TIMESTAMP_FORMAT_DISPLAY);
         }
         return ret;
     }
