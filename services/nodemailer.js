@@ -19,12 +19,13 @@ const sendMail = async (mailId, subject, htmlContent, recipientEmail) => {
         const replyTo = process.env.EMAIL_ADMIN;
 
         await transporter.sendMail({
-            from: `"${process.env.EMAIL_NAME}" <${process.env.EMAIL_NOREPLY}>`,
+//            from: `"${process.env.EMAIL_NAME}" <${process.env.EMAIL_NOREPLY}>`,
+            from: `${process.env.EMAIL_NOREPLY}`,
             to,
             replyTo,
             subject,
             html: htmlContent,
-            messageId: `rewardhub-${mailId}-${Date.now()}@gmail.com`,
+            messageId: `rewardhub-${mailId}-${Date.now()}@rewardhub.asia`,
             headers: {
                 'X-Priority': '1',
                 'X-Mailer': 'Nodemailer'
