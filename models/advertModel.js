@@ -17,6 +17,20 @@ const advertSchema = new mongoose.Schema({
             message: 'Invalid URL'
         }
     },
+    picture: {
+        type: String,
+        default: null,
+        validate: {
+            validator: function (value) {
+                // Ensure the string is a valid Base64 image format (basic validation)
+                return (
+                        value === null ||
+                        /^data:image\/(jpg|jpeg|png);base64,/.test(value)
+                        );
+            },
+            message: 'Invalid Base64 Image Format.'
+        }
+    },
     priority: {
         type: String,
         required: [true, 'Please specify priority'],
