@@ -14,12 +14,14 @@ const Transaction = require('../models/transactionModel');
 
 const {processVIPCommision} = require('../controllers/commisionController');
 
-const sendShippingNotification = async (transaction) => {
+const sendShippingNotification = async (member, transaction) => {
     // Fetch and modify HTML template
     const htmlTemplatePath = path.join(__dirname, '..', 'email', 'packageShipping.html');
     let htmlContent = fs.readFileSync(htmlTemplatePath, 'utf-8');
 
     htmlContent = htmlContent.replace('${packageCode}', `${transaction.packageCode}`);
+    htmlContent = htmlContent.replace('${fullName}', `${member.fullName}`);
+    
     htmlContent = htmlContent.replace('${phone}', `${transaction.shippingDetails.phone}`);
     htmlContent = htmlContent.replace('${addressLine1}', `${transaction.shippingDetails.addressLine1}`);
     htmlContent = htmlContent.replace('${addressLine2}', `${transaction.shippingDetails.addressLine2 || ''}`);
@@ -154,7 +156,7 @@ const purchasePackage = asyncHandler(async (req, res) => {
 
         if (req.member.shippingDetails) {
             logger.info('Sending shipping notification via email');
-            sendShippingNotification(transaction);
+            sendShippingNotification(req.member, transaction);
         }
 
         res.status(200).json({

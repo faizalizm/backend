@@ -43,7 +43,7 @@ const processVIPPayment = async (memberId, amount, transaction) => {
     logger.info(`⭐ Member ${member.fullName} upgraded to VIP`);
 
     if (transaction.shippingDetails) {
-      sendShippingNotification(transaction);
+      sendShippingNotification(member, transaction);
     }
     
     // Process VIP Referral Commission
