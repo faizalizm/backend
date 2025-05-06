@@ -66,7 +66,7 @@ const getPackage = asyncHandler(async (req, res) => {
 });
 
 const purchasePackage = asyncHandler(async (req, res) => {
-    const {code, paymentChannel, shippingDetails} = req.body;
+    const {code, paymentChannel} = req.body;
 
     if (!paymentChannel) { // To determine payment method
         res.status(400);
@@ -80,6 +80,12 @@ const purchasePackage = asyncHandler(async (req, res) => {
     if (req.member.type === "VIP") {
         res.status(400);
         throw new Error('Member is already a VIP');
+    }
+
+    logger.info('Checking member shipping details');
+    if (!req.member.shippingDetails) {
+        res.status(400);
+        throw new Error('Please fill up shipping details');
     }
 
     logger.info('Fetching VIP packages');
@@ -139,14 +145,14 @@ const purchasePackage = asyncHandler(async (req, res) => {
             status: 'Success',
             packageCode: code,
             amount: vipPackage.price,
-            ...(shippingDetails && {shippingStatus: 'Preparing'}),
-            ...(shippingDetails && {shippingDetails})
+            ...(req.member.shippingDetails && {shippingStatus: 'Preparing'}),
+            ...(req.member.shippingDetails && {shippingDetails: req.member.shippingDetails})
         });
 
         // Process VIP Referral Commission
         processVIPCommision(req.member, vipPackage.price);
 
-        if (shippingDetails) {
+        if (req.member.shippingDetails) {
             logger.info('Sending shipping notification via email');
             sendShippingNotification(transaction);
         }
@@ -180,8 +186,8 @@ const purchasePackage = asyncHandler(async (req, res) => {
                 status: 'In Progress',
                 packageCode: code,
                 amount: vipPackage.price,
-                ...(shippingDetails && {shippingStatus: 'Preparing'}),
-                ...(shippingDetails && {shippingDetails})
+                ...(req.member.shippingDetails && {shippingStatus: 'Preparing'}),
+                ...(req.member.shippingDetails && {shippingDetails: req.member.shippingDetails})
             });
 
             if (!transaction) {
