@@ -14,12 +14,14 @@ const Transaction = require('../models/transactionModel');
 
 const {processVIPCommision} = require('../controllers/commisionController');
 
-const sendShippingNotification = async (transaction) => {
+const sendShippingNotification = async (member, transaction) => {
     // Fetch and modify HTML template
     const htmlTemplatePath = path.join(__dirname, '..', 'email', 'packageShipping.html');
     let htmlContent = fs.readFileSync(htmlTemplatePath, 'utf-8');
 
     htmlContent = htmlContent.replace('${packageCode}', `${transaction.packageCode}`);
+    htmlContent = htmlContent.replace('${fullName}', `${member.fullName}`);
+    
     htmlContent = htmlContent.replace('${phone}', `${transaction.shippingDetails.phone}`);
     htmlContent = htmlContent.replace('${addressLine1}', `${transaction.shippingDetails.addressLine1}`);
     htmlContent = htmlContent.replace('${addressLine2}', `${transaction.shippingDetails.addressLine2 || ''}`);
@@ -66,7 +68,7 @@ const getPackage = asyncHandler(async (req, res) => {
 });
 
 const purchasePackage = asyncHandler(async (req, res) => {
-    const {code, paymentChannel, shippingDetails} = req.body;
+    const {code, paymentChannel} = req.body;
 
     if (!paymentChannel) { // To determine payment method
         res.status(400);
@@ -80,6 +82,12 @@ const purchasePackage = asyncHandler(async (req, res) => {
     if (req.member.type === "VIP") {
         res.status(400);
         throw new Error('Member is already a VIP');
+    }
+
+    logger.info('Checking member shipping details');
+    if (!req.member.shippingDetails) {
+        res.status(400);
+        throw new Error('Please fill up shipping details');
     }
 
     logger.info('Fetching VIP packages');
@@ -139,16 +147,16 @@ const purchasePackage = asyncHandler(async (req, res) => {
             status: 'Success',
             packageCode: code,
             amount: vipPackage.price,
-            ...(shippingDetails && {shippingStatus: 'Preparing'}),
-            ...(shippingDetails && {shippingDetails})
+            ...(req.member.shippingDetails && {shippingStatus: 'Preparing'}),
+            ...(req.member.shippingDetails && {shippingDetails: req.member.shippingDetails})
         });
 
         // Process VIP Referral Commission
         processVIPCommision(req.member, vipPackage.price);
 
-        if (shippingDetails) {
+        if (req.member.shippingDetails) {
             logger.info('Sending shipping notification via email');
-            sendShippingNotification(transaction);
+            sendShippingNotification(req.member, transaction);
         }
 
         res.status(200).json({
@@ -180,8 +188,8 @@ const purchasePackage = asyncHandler(async (req, res) => {
                 status: 'In Progress',
                 packageCode: code,
                 amount: vipPackage.price,
-                ...(shippingDetails && {shippingStatus: 'Preparing'}),
-                ...(shippingDetails && {shippingDetails})
+                ...(req.member.shippingDetails && {shippingStatus: 'Preparing'}),
+                ...(req.member.shippingDetails && {shippingDetails: req.member.shippingDetails})
             });
 
             if (!transaction) {
