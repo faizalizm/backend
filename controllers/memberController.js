@@ -28,6 +28,12 @@ const registerMember = asyncHandler(async (req, res) => {
         res.status(400);
         throw new Error('Full name cannot contain numbers');
     }
+    
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        res.status(400);
+        throw new Error('Invalid email format');
+    }
 
     // Check if member is already registered
     logger.info('Fetching member details');
