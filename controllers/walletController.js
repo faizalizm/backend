@@ -77,7 +77,6 @@ const getWallet = asyncHandler(async (req, res) => {
     });
 });
 
-
 const topupWallet = asyncHandler(async (req, res) => {
     const {paymentChannel, amount} = req.body;
 
@@ -89,6 +88,11 @@ const topupWallet = asyncHandler(async (req, res) => {
     let paymentChannelToyyib;
     if (paymentChannel === 'FPX') {
         paymentChannelToyyib = '0';
+        
+        // FPX STOP
+        res.status(404);
+        throw new Error('This feature is currently under maintenance.');
+        // FPX STOP
     } else {
         res.status(404);
         throw new Error('Payment channel not supported');
