@@ -12,9 +12,9 @@ const memberSchema = new mongoose.Schema({
             validator: function (value) {
                 // Ensure the string is a valid Base64 image format
                 return (
-                        value === null ||
-                        /^data:image\/(jpg|jpeg|png);base64,/.test(value)
-                        );
+                    value === null ||
+                    /^data:image\/(jpg|jpeg|png);base64,/.test(value)
+                );
             },
             message: 'Invalid Base64 Image Format.'
         }
@@ -44,10 +44,6 @@ const memberSchema = new mongoose.Schema({
         required: [true, 'Please specify phone'],
         unique: true, // Prevent register phone twice
         trim: true
-    },
-    refreshToken: {
-        type: String,
-        unique: true
     },
     referredBy: {
         type: mongoose.Schema.Types.ObjectId,
@@ -82,6 +78,11 @@ const memberSchema = new mongoose.Schema({
     // Shipping Details
     shippingDetails: {
         type: shippingDetailsSchema
+    },
+    status: {
+        type: String,
+        required: true,
+        enum: ['Deleted', 'Deactivated', 'Active'],
     },
     isDeleted: {
         type: Boolean

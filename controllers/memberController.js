@@ -6,17 +6,17 @@ const qrcode = require('qrcode');
 const fs = require('fs');
 const path = require('path');
 
-const {logger} = require('../services/logger');
-const {sendMail} = require('../services/nodemailer');
-const {setTokenOnLogin} = require('../services/firebaseCloudMessage');
-const {resizeImage} = require('../services/sharp');
+const { logger } = require('../services/logger');
+const { sendMail } = require('../services/nodemailer');
+const { setTokenOnLogin } = require('../services/firebaseCloudMessage');
+const { resizeImage } = require('../services/sharp');
 
 const Member = require('../models/memberModel');
 const Wallet = require('../models/walletModel');
 const Otp = require('../models/otpModel');
 
 const registerMember = asyncHandler(async (req, res) => {
-    const {fullName, email, password, phone, referredBy} = req.body;
+    const { fullName, email, password, phone, referredBy } = req.body;
 
     if (!fullName || !email || !password || !phone || !referredBy) {
         res.status(400);
@@ -28,7 +28,7 @@ const registerMember = asyncHandler(async (req, res) => {
         res.status(400);
         throw new Error('Full name cannot contain numbers');
     }
-    
+
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
         res.status(400);
@@ -39,8 +39,8 @@ const registerMember = asyncHandler(async (req, res) => {
     logger.info('Fetching member details');
     const memberDetails = await Member.findOne({
         $or: [
-            {email: email.toLowerCase()}, // Check for existing email
-            {phone: phone}  // Check for existing phone number
+            { email: email.toLowerCase() }, // Check for existing email
+            { phone: phone }  // Check for existing phone number
         ]
     });
 
@@ -66,7 +66,7 @@ const registerMember = asyncHandler(async (req, res) => {
     logger.info('Fetching referrer details');
     let referrer = null;
     if (referredBy) {
-        referrer = await Member.findOne({referralCode: referredBy});
+        referrer = await Member.findOne({ referralCode: referredBy });
         if (!referrer) {
             res.status(400);
             throw new Error('Invalid referral code');
@@ -81,7 +81,7 @@ const registerMember = asyncHandler(async (req, res) => {
         memberReferralCode = generateReferralCode(fullName); // Generate a new referral code
 
         // Check if the referral code already exists in the database
-        const existingReferralCode = await Member.findOne({referralCode: memberReferralCode});
+        const existingReferralCode = await Member.findOne({ referralCode: memberReferralCode });
 
         if (!existingReferralCode) {
             isReferralCodeUnique = true; // If no existing member found, the code is unique
@@ -107,7 +107,7 @@ const registerMember = asyncHandler(async (req, res) => {
         paymentCode = "payment://" + generatePaymentCode(); // Generate a new payment code
 
         // Check if the payment code already exists in the database
-        const existingPaymentCode = await Wallet.findOne({paymentCode});
+        const existingPaymentCode = await Wallet.findOne({ paymentCode });
 
         if (!existingPaymentCode) {
             isPaymentCodeUnique = true; // If no existing member found, the code is unique
@@ -153,25 +153,25 @@ const registerMember = asyncHandler(async (req, res) => {
 
                 // Propagate referrals up to 20 levels (starting from Level 2)
                 let currentReferrer = referrer.referredBy
-                        ? await Member.findById(referrer.referredBy)
-                        : null;
+                    ? await Member.findById(referrer.referredBy)
+                    : null;
                 let currentLevel = 2; // Start at Level 2 since Level 1 is already handled
 
                 while (currentReferrer && currentLevel <= 20) {
                     const levelString = currentLevel.toString();
 
                     let parentLevelEntry = currentReferrer.referrals.find(
-                            entry => entry.level === levelString
+                        entry => entry.level === levelString
                     );
 
                     if (!parentLevelEntry) {
                         parentLevelEntry = {
                             level: levelString,
                             referrals: [{
-                                    referrerId: referrer._id, // Add referrerId for higher levels
-                                    memberId: member._id,
-                                    referredAt: Date.now()
-                                }]
+                                referrerId: referrer._id, // Add referrerId for higher levels
+                                memberId: member._id,
+                                referredAt: Date.now()
+                            }]
                         };
                         currentReferrer.referrals.push(parentLevelEntry);
                     } else {
@@ -187,10 +187,10 @@ const registerMember = asyncHandler(async (req, res) => {
                     logger.info(`Added ${referrer.fullName} to ${currentReferrer.fullName}'s Level ${currentLevel} referrals`);
 
                     // Move up the referral chain, updating the referrer for the next level
-//                referrer = currentReferrer;
+                    //                referrer = currentReferrer;
                     currentReferrer = currentReferrer.referredBy
-                            ? await Member.findById(currentReferrer.referredBy)
-                            : null;
+                        ? await Member.findById(currentReferrer.referredBy)
+                        : null;
 
                     currentLevel++;
                 }
@@ -203,8 +203,8 @@ const registerMember = asyncHandler(async (req, res) => {
                 phone: member.phone,
                 referralCode: member.referralCode,
                 referredBy: referrer ? referrer.referralCode : null
-//                token: generateToken(member._id, process.env.ACCESS_TOKEN_EXPIRY),
-//                refreshToken: generateToken(member._id, process.env.REFRESH_TOKEN_EXPIRY)
+                //                token: generateToken(member._id, process.env.ACCESS_TOKEN_EXPIRY),
+                //                refreshToken: generateToken(member._id, process.env.REFRESH_TOKEN_EXPIRY)
             });
         } else {
             res.status(400);
@@ -217,19 +217,23 @@ const registerMember = asyncHandler(async (req, res) => {
 });
 
 const loginMember = asyncHandler(async (req, res) => {
-    const {type, email, password, phone, refreshToken, fcmToken} = req.body;
+    const { type, email, password, phone, refreshToken, fcmToken } = req.body;
 
     try {
         logger.info(`Login Type : ${type}`);
         if (type === 'biometric') {
             logger.info('Fetching member details');
-            const member = await Member.findOne({refreshToken});
+            const member = await Member.findOne({ refreshToken });
             if (!member) {
                 res.status(400);
                 throw new Error('Biometric authentication fail, please proceed with password login');
             } else if (member.email != email) {
                 res.status(400);
                 throw new Error('Email changed, kindly relogin to enable biometric');
+            } else if (member.status === 'Deleted') {
+                throw new Error('Member not found');
+            } else if (member.status === 'Deactivated') {
+                throw new Error('Account deactivated, please contact support for assistance');
             }
 
             if (fcmToken) {
@@ -255,9 +259,9 @@ const loginMember = asyncHandler(async (req, res) => {
             logger.info('Fetching member details');
             let member = null;
             if (email) {
-                member = await Member.findOne({email: email.toLowerCase()});
+                member = await Member.findOne({ email: email.toLowerCase() });
             } else if (phone) {
-                member = await Member.findOne({phone});
+                member = await Member.findOne({ phone });
             } else {
                 res.status(400);
                 throw new Error('Email or phone required');
@@ -267,6 +271,10 @@ const loginMember = asyncHandler(async (req, res) => {
                 logger.warn('Member not found');
                 res.status(400);
                 throw new Error('Invalid credentials');
+            } else if (member.status === 'Deleted') {
+                throw new Error('Member not found');
+            } else if (member.status === 'Deactivated') {
+                throw new Error('Account deactivated, please contact support for assistance');
             }
 
             logger.info('Validating password');
@@ -303,7 +311,7 @@ const loginMember = asyncHandler(async (req, res) => {
 });
 
 const getOtp = asyncHandler(async (req, res) => {
-    const {email, phone} = req.query;
+    const { email, phone } = req.query;
 
     if (!email && !phone) {
         res.status(400);
@@ -326,7 +334,7 @@ const getOtp = asyncHandler(async (req, res) => {
             query.phone = phone;
 
         logger.info('Fetching most recent OTP');
-        const lastOtp = await Otp.findOne(query).sort({createdAt: -1}); // Get the most recent OTP
+        const lastOtp = await Otp.findOne(query).sort({ createdAt: -1 }); // Get the most recent OTP
 
         if (lastOtp) {
             logger.info('Validating OTP cooldown');
@@ -356,7 +364,7 @@ const getOtp = asyncHandler(async (req, res) => {
 
         // Save OTP
         logger.info('Creating OTP');
-        const createdOtp = await Otp.create({email, phone, otp, otpExpiry});
+        const createdOtp = await Otp.create({ email, phone, otp, otpExpiry });
 
         if (email) {
             logger.info('Sending OTP via email');
@@ -364,7 +372,7 @@ const getOtp = asyncHandler(async (req, res) => {
         }
 
         res.status(200).json({
-//            otp, // Remove in production for security reasons
+            //            otp, // Remove in production for security reasons
             expiry: otpExpiry
         });
     } catch (error) {
@@ -374,7 +382,7 @@ const getOtp = asyncHandler(async (req, res) => {
 });
 
 const deleteMember = asyncHandler(async (req, res) => {
-    const {email, password, otp} = req.body;
+    const { email, password, otp } = req.body;
 
     if (!email || !password || !otp) {
         res.status(400);
@@ -383,7 +391,7 @@ const deleteMember = asyncHandler(async (req, res) => {
 
     // Check user email
     logger.info('Fetching member details');
-    let member = await Member.findOne({email}, {password: 1, phone: 1, email: 1, isDeleted: 1});
+    let member = await Member.findOne({ email }, { password: 1, phone: 1, email: 1, isDeleted: 1 });
     if (!member) {
         res.status(404);
         throw new Error('Invalid credentials');
@@ -398,7 +406,7 @@ const deleteMember = asyncHandler(async (req, res) => {
 
     // Find from OTP list
     logger.info('Fetching most recent OTP');
-    const lastOtp = await Otp.findOne({email}).sort({createdAt: -1}); // Get the most recent OTP
+    const lastOtp = await Otp.findOne({ email }).sort({ createdAt: -1 }); // Get the most recent OTP
     if (!lastOtp) {
         res.status(404);
         throw new Error('No OTP found for this email');
@@ -441,7 +449,7 @@ const deleteMember = asyncHandler(async (req, res) => {
 
 const resetPassword = asyncHandler(async (req, res) => {
     try {
-        const {email, password, otp} = req.body;
+        const { email, password, otp } = req.body;
 
         if (!email || !password || !otp) {
             res.status(400);
@@ -450,7 +458,7 @@ const resetPassword = asyncHandler(async (req, res) => {
 
         // Check user email
         logger.info('Fetching member details');
-        let member = await Member.findOne({email}, {phone: 1, email: 1, isDeleted: 1});
+        let member = await Member.findOne({ email }, { phone: 1, email: 1, isDeleted: 1 });
         if (!member) {
             res.status(404);
             throw new Error('Member not found');
@@ -458,7 +466,7 @@ const resetPassword = asyncHandler(async (req, res) => {
 
         // Find from OTP list
         logger.info('Fetching most recent OTP');
-        const lastOtp = await Otp.findOne({email}).sort({createdAt: -1}); // Get the most recent OTP
+        const lastOtp = await Otp.findOne({ email }).sort({ createdAt: -1 }); // Get the most recent OTP
         if (!lastOtp) {
             res.status(400);
             throw new Error('OTP is invalid');
@@ -494,7 +502,7 @@ const resetPassword = asyncHandler(async (req, res) => {
         member.password = hashedPassword;
         await member.save();
 
-        res.status(200).json({message: 'Password has been reset successfully'});
+        res.status(200).json({ message: 'Password has been reset successfully' });
     } catch (error) {
         res.status(500);
         throw error;
@@ -504,13 +512,13 @@ const resetPassword = asyncHandler(async (req, res) => {
 const getMember = asyncHandler(async (req, res) => {
     try {
         logger.info('Fetching member details');
-        const member = await Member.findById(req.member._id, {_id: 0, password: 0, referrals: 0, __v: 0}).lean();
+        const member = await Member.findById(req.member._id, { _id: 0, password: 0, referrals: 0, __v: 0 }).lean();
 
         if (!req.member.referredBy) {
             member.referredBy = 'Not Set';
         } else {
             logger.info('Fetching referrer details');
-            const referrer = await Member.findOne({_id: req.member.referredBy}, {_id: 0, fullName: 1});
+            const referrer = await Member.findOne({ _id: req.member.referredBy }, { _id: 0, fullName: 1 });
             if (referrer) {
                 member.referredBy = referrer.fullName;
             }
@@ -530,13 +538,13 @@ const getMember = asyncHandler(async (req, res) => {
 
 const updateMember = asyncHandler(async (req, res) => {
     // Remove restricted fields
-    const {_id, createdAt, updatedAt, referralCode, type, ...updates} = req.body;
+    const { _id, createdAt, updatedAt, referralCode, type, ...updates } = req.body;
 
     // Check for withdrawal details
     const currentWithdrawalDetails = req.member.withdrawalDetails || {};
-    const withdrawalDetails = {...currentWithdrawalDetails};
+    const withdrawalDetails = { ...currentWithdrawalDetails };
     if (updates.withdrawalDetails?.bankDetails) {
-        const {bankName, bankAccountName, bankAccountNumber} = updates.withdrawalDetails.bankDetails;
+        const { bankName, bankAccountName, bankAccountNumber } = updates.withdrawalDetails.bankDetails;
         if (!bankName || !bankAccountName || !bankAccountNumber) {
             res.status(400);
             throw new Error('Please provide all bank details');
@@ -566,7 +574,7 @@ const updateMember = asyncHandler(async (req, res) => {
 
         // Find the referrer
         logger.info('Fetching referrer details');
-        const referrer = await Member.findOne({referralCode: updates.referredBy});
+        const referrer = await Member.findOne({ referralCode: updates.referredBy });
 
         // Check if the referral code exists
         if (!referrer) {
@@ -649,7 +657,7 @@ const updateMember = asyncHandler(async (req, res) => {
     try {
         logger.info('Updating member details');
         const updatedMember = await Member.findByIdAndUpdate(req.member._id, updates, {
-            new : true,
+            new: true,
             runValidators: true // Ensures schema validation is applied
         }).select('-_id -vipAt -createdAt -updatedAt -__v -referrals -referredBy -referralCode -type -password');
         res.status(200).json(updatedMember);
@@ -660,7 +668,7 @@ const updateMember = asyncHandler(async (req, res) => {
 });
 
 const inviteMember = asyncHandler(async (req, res) => {
-    const {email, phone} = req.body;
+    const { email, phone } = req.body;
 
     if (!email && !phone) {
         res.status(400);
@@ -700,14 +708,14 @@ const inviteMember = asyncHandler(async (req, res) => {
     }
 
     // Respond with the Play Store invitation link
-    res.status(200).json({invitationLink: playStoreInvitation});
+    res.status(200).json({ invitationLink: playStoreInvitation });
 });
 
 const getReferral = asyncHandler(async (req, res) => {
-    const {level} = req.query;
+    const { level } = req.query;
 
     if (!level) {
-        return res.status(400).json({message: "Level is required"});
+        return res.status(400).json({ message: "Level is required" });
     }
 
     try {
@@ -716,13 +724,13 @@ const getReferral = asyncHandler(async (req, res) => {
         const member = await Member.findById(req.member._id);
 
         if (!member) {
-            return res.status(404).json({message: "Member not found"});
+            return res.status(404).json({ message: "Member not found" });
         }
 
         const referralsForLevel = member.referrals.find(referral => referral.level === level);
 
         if (!referralsForLevel) {
-            return res.status(404).json({message: `No referrals found for level ${level}`});
+            return res.status(404).json({ message: `No referrals found for level ${level}` });
         }
 
         const populatedReferrals = await Promise.all(referralsForLevel.referrals.map(async (referral) => {
@@ -761,15 +769,15 @@ const getReferral = asyncHandler(async (req, res) => {
                 referrer: {
                     fullName,
                     type // Add the actual type from the referrer object
-                            // You can add other referrer fields if necessary, like profile picture or VIP status
+                    // You can add other referrer fields if necessary, like profile picture or VIP status
                 },
                 members: groupedReferrals[referrerKey]
             };
         });
-        return res.status(200).json({referrals: modifiedReferralList});
+        return res.status(200).json({ referrals: modifiedReferralList });
     } catch (error) {
         console.error(error);
-        return res.status(500).json({message: "An error occurred while retrieving referrals"});
+        return res.status(500).json({ message: "An error occurred while retrieving referrals" });
     }
 });
 
@@ -793,7 +801,7 @@ const getVIPStatistic = asyncHandler(async (req, res) => {
 
 const getTotalLiveVIP = async () => {
     try {
-        return await Member.countDocuments({type: 'VIP'});
+        return await Member.countDocuments({ type: 'VIP' });
     } catch (error) {
         logger.error(`Error getting total Live VIP : ${error.message}`);
         return null;
@@ -802,23 +810,23 @@ const getTotalLiveVIP = async () => {
 
 const getRecentVIP = async () => {
     try {
-//        const period = 48; // 48 hours ago
-//        const recentPeriod = new Date(Date.now() - period * 60 * 60 * 1000);
+        //        const period = 48; // 48 hours ago
+        //        const recentPeriod = new Date(Date.now() - period * 60 * 60 * 1000);
 
         return await Member.find(
-                {
-                    type: 'VIP'
-//                    vipAt: {$gte: recentPeriod}}, // Filter by vipAt >= 48 hours ago}, // Match members with type VIP
-                },
-                {
-                    profilePicture: 1,
-                    fullName: 1,
-                    vipAt: 1,
-                    _id: 0 // Exclude the _id field
-                }
+            {
+                type: 'VIP'
+                //                    vipAt: {$gte: recentPeriod}}, // Filter by vipAt >= 48 hours ago}, // Match members with type VIP
+            },
+            {
+                profilePicture: 1,
+                fullName: 1,
+                vipAt: 1,
+                _id: 0 // Exclude the _id field
+            }
         )
-                .sort({vipAt: -1}) // Sort by vipAt in descending order (most recent first)
-                .limit(10);
+            .sort({ vipAt: -1 }) // Sort by vipAt in descending order (most recent first)
+            .limit(10);
 
     } catch (error) {
         logger.error(`Error getting recent VIP : ${error.message}`);
@@ -828,7 +836,7 @@ const getRecentVIP = async () => {
 
 // Generate JWT Token
 const generateToken = (id, expiry) => {
-    return jwt.sign({id}, process.env.JWT_SECRET, {
+    return jwt.sign({ id }, process.env.JWT_SECRET, {
         expiresIn: expiry
     });
 };
@@ -877,7 +885,7 @@ const sendOtpEmail = async (recipientEmail, otp, minutesAfterExpiry, otpExpiry) 
     // Replace placeholders with actual data
     htmlContent = htmlContent.replace('${otp}', otp);
     htmlContent = htmlContent.replace('${minutesAfterExpiry}', minutesAfterExpiry);
-//    htmlContent = htmlContent.replace('${otpExpiry}', otpExpiry);
+    //    htmlContent = htmlContent.replace('${otpExpiry}', otpExpiry);
 
     let mailId = 'otp';
     let subject = 'Reward Hub OTP';

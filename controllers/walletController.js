@@ -104,6 +104,7 @@ const topupWallet = asyncHandler(async (req, res) => {
         res.status(500);
         throw new Error('Package not found');
     }
+    logger.info(`Topup package - ${vipPackage.name}, Code : ${vipPackage.code}, Category Code : ${vipPackage.categoryCode}`);
 
     // Find the wallet linked to the member
     logger.info('Fetching wallet detail');
