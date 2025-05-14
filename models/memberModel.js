@@ -81,8 +81,8 @@ const memberSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        required: true,
         enum: ['Deleted', 'Deactivated', 'Active'],
+        default: 'Active'
     },
     isDeleted: {
         type: Boolean
