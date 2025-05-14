@@ -96,7 +96,8 @@ const registerMember = asyncHandler(async (req, res) => {
         password: hashedPassword,
         phone,
         referredBy: referrer ? referrer._id : null,
-        referralCode: memberReferralCode
+        referralCode: memberReferralCode,
+        status: 'Active'
     });
 
     // Generate Payment Code
