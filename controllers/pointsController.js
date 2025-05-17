@@ -1,15 +1,30 @@
 const asyncHandler = require('express-async-handler');
 
-const {logger} = require('../services/logger');
+const { logger } = require('../services/logger');
 
 const Member = require('../models/memberModel');
 const Wallet = require('../models/walletModel');
 const Transaction = require('../models/transactionModel');
+const PointsReward = require('../models/pointsRewardModel');
+
+const getPointsReward = asyncHandler(async (req, res) => {
+
+    logger.info('Fetching points reward details - Status : Active');
+    const pointsReward = await PointsReward.find({ status: "Active" }, { _id: 0, __v: 0, startDate: 0, endDate: 0 });
+    if (!pointsReward) {
+        res.status(404);
+        throw new Error('No active points reward found');
+    }
+
+    res.status(200).json({
+        pointsReward
+    });
+});
 
 const getPoints = asyncHandler(async (req, res) => {
     // Find the wallet linked to the member
     logger.info('Fetching wallet details');
-    const wallet = await Wallet.findOne({memberId: req.member._id});
+    const wallet = await Wallet.findOne({ memberId: req.member._id });
     if (!wallet) {
         res.status(404);
         throw new Error('Wallet Not Found');
@@ -24,8 +39,8 @@ const getPoints = asyncHandler(async (req, res) => {
     const transactions = await Transaction.find({
         systemType: 'HubPoints',
         walletId: wallet._id,
-        status: {$in: ['Success', 'In Progress']},
-        createdAt: {$gte: ninetyDaysAgo}
+        status: { $in: ['Success', 'In Progress'] },
+        createdAt: { $gte: ninetyDaysAgo }
     }, {
         systemType: 1,
         type: 1,
@@ -35,7 +50,7 @@ const getPoints = asyncHandler(async (req, res) => {
         createdAt: 1,
         shippingStatus: 1,
         shippingDetails: 1
-    }).sort({createdAt: -1});
+    }).sort({ createdAt: -1 });
 
     res.status(200).json({
         points: wallet.points,
@@ -44,7 +59,7 @@ const getPoints = asyncHandler(async (req, res) => {
 });
 
 const redeemPoints = asyncHandler(async (req, res) => {
-    const {points} = req.body;
+    const { points } = req.body;
 
     const minRedemptionAmount = 50;
 
@@ -66,7 +81,7 @@ const redeemPoints = asyncHandler(async (req, res) => {
 
     // Find the wallet linked to the member
     logger.info('Fetching wallet details');
-    const wallet = await Wallet.findOne({memberId: req.member._id}, {_id: 1, balance: 1, points: 1});
+    const wallet = await Wallet.findOne({ memberId: req.member._id }, { _id: 1, balance: 1, points: 1 });
     if (!wallet) {
         res.status(404);
         throw new Error('Wallet Not Found');
@@ -84,23 +99,23 @@ const redeemPoints = asyncHandler(async (req, res) => {
     try {
         logger.info('Creating debit point transaction');
         const pointsTransaction = await Transaction.create({
-                        walletId: wallet._id,
-                        systemType: 'HubPoints',
-                        type: 'Debit',
-                        description: 'Points Redemption',
-                        status: 'Success',
-                        amount: points
-                });
+            walletId: wallet._id,
+            systemType: 'HubPoints',
+            type: 'Debit',
+            description: 'Points Redemption',
+            status: 'Success',
+            amount: points
+        });
 
         logger.info('Creating credit cash transaction');
         const walletTransaction = await Transaction.create({
-                        walletId: wallet._id,
-                        systemType: 'HubWallet',
-                        type: 'Credit',
-                        description: 'Points Redemption',
-                        status: 'Success',
-                        amount: points
-                });
+            walletId: wallet._id,
+            systemType: 'HubWallet',
+            type: 'Credit',
+            description: 'Points Redemption',
+            status: 'Success',
+            amount: points
+        });
 
         if (!pointsTransaction || !walletTransaction) {
             res.status(500);
@@ -126,4 +141,4 @@ const redeemPoints = asyncHandler(async (req, res) => {
     }
 });
 
-module.exports = {getPoints, redeemPoints};
+module.exports = { getPointsReward, getPoints, redeemPoints };
