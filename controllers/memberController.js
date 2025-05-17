@@ -663,6 +663,14 @@ const updateMember = asyncHandler(async (req, res) => {
         }).select('-_id -vipAt -createdAt -updatedAt -__v -referrals -referredBy -referralCode -type -password');
         res.status(200).json(updatedMember);
     } catch (error) {
+
+        if (error.code === 11000) {
+            const duplicateField = Object.keys(error.keyValue)[0];
+            logger.warn(`Duplicate field: ${duplicateField}`);
+            res.status(400);
+            throw new Error(`${duplicateField} has been taken`);
+        }
+
         res.status(400);
         throw error;
     }
