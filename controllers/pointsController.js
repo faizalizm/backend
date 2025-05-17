@@ -38,8 +38,15 @@ const getPointsReward = asyncHandler(async (req, res) => {
         throw new Error('No active points reward found');
     }
 
+    const formattedPointsReward = pointsReward.map(item => {
+        return {
+            ...item.toJSON(),
+            pointsRequirement: item.pointsRequirement + ' pts'
+        };
+    });
+
     res.status(200).json({
-        pointsReward
+        pointsReward: formattedPointsReward
     });
 });
 
