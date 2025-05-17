@@ -28,7 +28,9 @@ const memberSchema = new mongoose.Schema({
         type: String,
         unique: true,
         sparse: true, // ignore null duplicates
-        trim: true
+        trim: true,
+        lowercase: true, // ensures value is saved in lowercase
+        match: [/^[a-zA-Z0-9_-]+$/, 'Username can only contain letters, numbers, underscores, and dashes']
     },
     email: {
         type: String,
