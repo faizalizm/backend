@@ -2,11 +2,11 @@ const express = require('express');
 const { protect } = require('../middleware/authMiddleware');
 
 const {
-    getAdvert
-} = require('../controllers/advertController');
+    getLifestyle
+} = require('../controllers/lifestyleController');
 
 const router = express.Router();
 
-router.get('/resource', protect, getAdvert);
+router.get('/resource', protect, getLifestyle);
 
 module.exports = router;

@@ -165,7 +165,11 @@ app.use('/api/v1/package', require('./routes/packageRoutes'));
 app.use('/api/v1/wallet', require('./routes/walletRoutes'));
 app.use('/api/v1/points', require('./routes/pointsRoutes'));
 app.use('/api/v1/charity', require('./routes/charityRoutes'));
+
 app.use('/api/v1/advert', require('./routes/advertRoutes'));
+app.use('/api/v1/banner', require('./routes/bannerRoutes'));
+app.use('/api/v1/lifestyle', require('./routes/lifestyleRoutes'));
+
 app.use('/api/v1/system', require('./routes/systemRoutes'));
 
 app.use(errorHandler);
