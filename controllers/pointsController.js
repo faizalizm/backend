@@ -10,7 +10,29 @@ const PointsReward = require('../models/pointsRewardModel');
 const getPointsReward = asyncHandler(async (req, res) => {
 
     logger.info('Fetching points reward details - Status : Active');
-    const pointsReward = await PointsReward.find({ status: "Active" }, { _id: 0, __v: 0, startDate: 0, endDate: 0 });
+    const now = new Date();
+
+    const pointsReward = await PointsReward.find({
+        status: "Active",
+        $and: [
+            {
+                $or: [
+                    { startDate: null },
+                    { startDate: { $lte: now } }
+                ]
+            },
+            {
+                $or: [
+                    { endDate: null },
+                    { endDate: { $gte: now } }
+                ]
+            }
+        ]
+    }, {
+        _id: 0,
+        __v: 0
+    }).sort({ priority: 1 });
+
     if (!pointsReward) {
         res.status(404);
         throw new Error('No active points reward found');
