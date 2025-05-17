@@ -26,6 +26,8 @@ const memberSchema = new mongoose.Schema({
     },
     userName: {
         type: String,
+        unique: true,
+        sparse: true, // ignore null duplicates
         trim: true
     },
     email: {
