@@ -35,8 +35,15 @@ const getLifestyle = asyncHandler(async (req, res) => {
         throw new Error('No active lifestyle found');
     }
 
+    const formattedLifestyles = lifestyles.map(item => {
+        return {
+            ...item.toJSON(),
+            requirement: item.requirement + ' VIP'
+        };
+    });
+
     res.status(200).json({
-        lifestyles
+        lifestyles: formattedLifestyles
     });
 });
 
