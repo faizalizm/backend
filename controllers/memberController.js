@@ -16,11 +16,16 @@ const Wallet = require('../models/walletModel');
 const Otp = require('../models/otpModel');
 
 const registerMember = asyncHandler(async (req, res) => {
-    const { fullName, email, password, phone, referredBy } = req.body;
+    const { userName, fullName, email, password, phone, referredBy } = req.body;
 
-    if (!fullName || !email || !password || !phone || !referredBy) {
+    if (!userName || !fullName || !email || !password || !phone || !referredBy) {
         res.status(400);
         throw new Error('Please add all fields');
+    }
+
+    if (!/^[a-zA-Z0-9_-]+$/.test(userName)) {
+        res.status(400);
+        throw new Error('Username can only contain letters, numbers, underscores, and dashes');
     }
 
     // Check if fullName contains numbers and reject if true
@@ -40,14 +45,25 @@ const registerMember = asyncHandler(async (req, res) => {
     const memberDetails = await Member.findOne({
         $or: [
             { email: email.toLowerCase() }, // Check for existing email
-            { phone: phone }  // Check for existing phone number
+            { phone: phone },  // Check for existing phone number
+            { userName: userName.toLowerCase() }
         ]
     });
 
-    logger.info('Checking email/phone uniqueness');
+    logger.info('Checking field uniqueness');
     if (memberDetails) {
-        res.status(400);
-        throw new Error('Email or Phone is already in use');
+        if (memberDetails.email === email.toLowerCase()) {
+            res.status(400);
+            throw new Error('Email has been taken');
+        }
+        if (memberDetails.phone === phone) {
+            res.status(400);
+            throw new Error('Phone number has been taken');
+        }
+        if (memberDetails.userName === userName.toLowerCase()) {
+            res.status(400);
+            throw new Error('Username has been taken');
+        }
     }
 
     // Validate password strength (min 8 characters, max 20 characters, include at least 1 uppercase and 1 number)
@@ -91,8 +107,9 @@ const registerMember = asyncHandler(async (req, res) => {
     // Create Member
     logger.info('Creating member');
     const member = await Member.create({
+        userName: userName.toLowerCase(),
         fullName,
-        email,
+        email: email.toLowerCase(),
         password: hashedPassword,
         phone,
         referredBy: referrer ? referrer._id : null,
