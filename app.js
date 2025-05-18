@@ -148,7 +148,7 @@ app.use(morgan(responseFormat, {
 }));  // Log responses after completion
 
 // ------ Serve static folder
-app.use('/resources', express.static(path.join(__dirname, 'public')));
+app.use('/resources', cors(), express.static(path.join(__dirname, 'public')));
 
 // ------ View Routes
 app.get('/', (req, res) => {
