@@ -16,16 +16,11 @@ const Wallet = require('../models/walletModel');
 const Otp = require('../models/otpModel');
 
 const registerMember = asyncHandler(async (req, res) => {
-    const { userName, fullName, email, password, phone, referredBy } = req.body;
+    const { fullName, email, password, phone, referredBy } = req.body;
 
-    if (!userName || !fullName || !email || !password || !phone || !referredBy) {
+    if (!fullName || !email || !password || !phone || !referredBy) {
         res.status(400);
         throw new Error('Please add all fields');
-    }
-
-    if (!/^[a-zA-Z0-9_-]+$/.test(userName)) {
-        res.status(400);
-        throw new Error('Username can only contain letters, numbers, underscores, and dashes');
     }
 
     // Check if fullName contains numbers and reject if true
@@ -45,8 +40,7 @@ const registerMember = asyncHandler(async (req, res) => {
     const memberDetails = await Member.findOne({
         $or: [
             { email: email.toLowerCase() }, // Check for existing email
-            { phone: phone },  // Check for existing phone number
-            { userName: userName.toLowerCase() }
+            { phone: phone }  // Check for existing phone number
         ]
     });
 
@@ -59,10 +53,6 @@ const registerMember = asyncHandler(async (req, res) => {
         if (memberDetails.phone === phone) {
             res.status(400);
             throw new Error('Phone number has been taken');
-        }
-        if (memberDetails.userName === userName.toLowerCase()) {
-            res.status(400);
-            throw new Error('Username has been taken');
         }
     }
 
@@ -107,7 +97,6 @@ const registerMember = asyncHandler(async (req, res) => {
     // Create Member
     logger.info('Creating member');
     const member = await Member.create({
-        userName: userName.toLowerCase(),
         fullName,
         email: email.toLowerCase(),
         password: hashedPassword,
@@ -891,7 +880,7 @@ const generateReferralCode = (fullName) => {
 
 const sendInvitationEmail = async (recipientEmail, referralCode, playStoreInvitation) => {
     // Fetch and modify HTML template
-    const htmlTemplatePath = path.join(__dirname, '..', 'email', 'referralInvitation.html');
+    const htmlTemplatePath = path.join(__dirname, '..', 'email', 'otpMail.html');
     let htmlContent = fs.readFileSync(htmlTemplatePath, 'utf-8');
 
     // Replace placeholders with actual data
