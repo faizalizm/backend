@@ -30,8 +30,6 @@ const app = express();
 app.set('view engine', 'pug');
 app.set('views', path.join(__dirname, 'views'));
 
-app.use(express.static(path.join(__dirname, 'public')));
-
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
@@ -148,6 +146,9 @@ app.use(morgan(responseFormat, {
         }
     }
 }));  // Log responses after completion
+
+// ------ Serve static folder
+app.use('/resources', express.static(path.join(__dirname, 'public')));
 
 // ------ View Routes
 app.get('/', (req, res) => {
