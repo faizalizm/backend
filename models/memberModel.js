@@ -37,7 +37,13 @@ const memberSchema = new mongoose.Schema({
         required: [true, 'Please specify email'],
         unique: true, // Prevent register email twice
         lowercase: true,
-        trim: true
+        trim: true,
+        validate: {
+            validator: function (value) {
+                return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+            },
+            message: 'Invalid email format.'
+        }
     },
     password: {
         type: String,
