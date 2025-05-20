@@ -20,7 +20,7 @@ const lifestyleSchema = new mongoose.Schema({
                 // Ensure the string is a valid Base64 image format (basic validation)
                 return (
                     value === null ||
-                    /^data:image\/(jpg|jpeg|png);base64,/.test(value)
+                    /^data:image\/(jpg|jpeg|png|webp);base64,/.test(value)
                 );
             },
             message: 'Invalid Image Format.'
