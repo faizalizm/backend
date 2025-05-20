@@ -558,6 +558,12 @@ const updateMember = asyncHandler(async (req, res) => {
     // Remove restricted fields
     const { _id, createdAt, updatedAt, referralCode, type, ...updates } = req.body;
 
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (updates.email && !emailRegex.test(updates.email)) {
+        res.status(400);
+        throw new Error('Invalid email format');
+    }
+
     // Check for withdrawal details
     const currentWithdrawalDetails = req.member.withdrawalDetails || {};
     const withdrawalDetails = { ...currentWithdrawalDetails };
