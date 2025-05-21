@@ -1,15 +1,15 @@
 const colors = require('colors');
-const {JWT} = require('google-auth-library');
-const {initializeApp, applicationDefault} = require('firebase-admin/app');
+const { JWT } = require('google-auth-library');
+const { initializeApp, applicationDefault } = require('firebase-admin/app');
 
 const axiosInstance = require('./axios');
-const {logger, trimBase64} = require('./logger');
+const { logger, trimBase64 } = require('./logger');
 
 const CloudMessagingModel = require('../models/cloudMessagingModel');
 
 const serviceAccount = require("../firebase-service-account.json");
 
-const {FCM_URL} = process.env;
+const { FCM_URL } = process.env;
 
 const connectFirebase = async () => {
     try {
@@ -44,7 +44,7 @@ const getAccessToken = async () => {
 const setTokenOnLogin = async (member, token) => {
     try {
         // Check if the token already exists (possibly linked to another user)
-        const existingToken = await CloudMessagingModel.findOne({token});
+        const existingToken = await CloudMessagingModel.findOne({ token });
 
         if (existingToken) {
             if (existingToken.memberId.toString() === member._id.toString()) {
@@ -54,12 +54,12 @@ const setTokenOnLogin = async (member, token) => {
             }
 
             // Token exists for another user → Reassign it
-            await CloudMessagingModel.deleteOne({token});
+            await CloudMessagingModel.deleteOne({ token });
             logger.info(`FCM token reassigned from user ${existingToken.memberId} to user ${member._id}`);
         }
 
         // Remove old tokens for this user (to enforce one token per account)
-        await CloudMessagingModel.deleteMany({memberId: member._id});
+        await CloudMessagingModel.deleteMany({ memberId: member._id });
 
         // Create new token record
         const tokenRecord = await CloudMessagingModel.create({
@@ -73,11 +73,13 @@ const setTokenOnLogin = async (member, token) => {
     }
 };
 
-const buildTransferMessage = (amount) => {
+const buildTransferMessage = (amount, member) => {
+    const displayName = member?.userName?.trim() || member?.fullName?.trim();
+
     return {
         notification: {
             title: 'Received Transfer',
-            body: `You have received RM ${(amount / 100).toFixed(2)} in your Hub Wallet`
+            body: `You have received RM ${(amount / 100).toFixed(2)} in your Hub Wallet${displayName ? ' from ' + displayName : ''}`
         },
         data: {
             sound: 'default'
@@ -85,11 +87,13 @@ const buildTransferMessage = (amount) => {
     };
 };
 
-const buildQRPaymentMessage = (amount) => {
+const buildQRPaymentMessage = (amount, member) => {
+    const displayName = member?.userName?.trim() || member?.fullName?.trim();
+
     return {
         notification: {
             title: 'Received QR Transfer',
-            body: `You have received RM ${(amount / 100).toFixed(2)} in your Hub Wallet`
+            body: `You have received RM ${(amount / 100).toFixed(2)} in your Hub Wallet${displayName ? ' from ' + displayName : ''}`
         },
         data: {
             sound: 'default'
@@ -97,11 +101,13 @@ const buildQRPaymentMessage = (amount) => {
     };
 };
 
-const buildMerchantQRPaymentMessage = (amount) => {
+const buildMerchantQRPaymentMessage = (amount, receivingAmount, member) => {
+    const displayName = member?.userName?.trim() || member?.fullName?.trim();
+
     return {
         notification: {
             title: 'Received Merchant QR Payment',
-            body: `You have received RM ${(amount / 100).toFixed(2)} in your Hub Wallet`
+            body: `${displayName ? displayName : 'A customer'} has made a payment of RM ${(amount / 100).toFixed(2)}. You have received RM ${(receivingAmount / 100).toFixed(2)} in your Hub Wallet`
         },
         data: {
             sound: 'default'
@@ -109,11 +115,13 @@ const buildMerchantQRPaymentMessage = (amount) => {
     };
 };
 
-const buildVIPCommisionMessage = (amount) => {
+const buildVIPCommisionMessage = (amount, vip) => {
+    const displayName = vip?.userName?.trim() || vip?.fullName?.trim() || 'A member under you';
+
     return {
         notification: {
             title: 'Received VIP Commision',
-            body: `A VIP has registered under you. You have received RM ${(amount / 100).toFixed(2)} in your Hub Wallet`
+            body: `${displayName} has upgraded to VIP. You have received RM ${(amount / 100).toFixed(2)} in your Hub Wallet`
         },
         data: {
             sound: 'default'
@@ -143,7 +151,7 @@ const sendMessage = async (message, member) => {
         }
         logger.info(`Access Token : ${accessToken}`);
 
-        const cloudMessageRecord = await CloudMessagingModel.findOne({memberId: member._id}, {token: 1, lastSent: 1});
+        const cloudMessageRecord = await CloudMessagingModel.findOne({ memberId: member._id }, { token: 1, lastSent: 1 });
         if (!cloudMessageRecord || !cloudMessageRecord.token) {
             logger.warn(`No token associated with member ${member._id}`);
             return;
@@ -151,19 +159,19 @@ const sendMessage = async (message, member) => {
         message.token = cloudMessageRecord.token;
 
         const response = await axiosInstance.post(
-                FCM_URL,
-                {message},
-                {
-                    headers: {
-                        'Authorization': `Bearer ${accessToken}`,
-                        'Content-Type': 'application/json'
-                    }
+            FCM_URL,
+            { message },
+            {
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json'
                 }
+            }
         );
 
         await CloudMessagingModel.updateOne(
-                {memberId: member._id},
-                {$set: {lastSent: new Date()}}
+            { memberId: member._id },
+            { $set: { lastSent: new Date() } }
         );
 
         logger.info(`✅ Message sent successfully to ${member._id}`, response.data);
@@ -174,6 +182,8 @@ const sendMessage = async (message, member) => {
     }
 };
 
-module.exports = {connectFirebase, getAccessToken, setTokenOnLogin,
+module.exports = {
+    connectFirebase, getAccessToken, setTokenOnLogin,
     buildTransferMessage, buildQRPaymentMessage, buildMerchantQRPaymentMessage, buildVIPCommisionMessage, buildSpendingRewardMessage,
-    sendMessage};
+    sendMessage
+};

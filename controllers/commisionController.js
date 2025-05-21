@@ -1,5 +1,5 @@
-const {logger} = require('../services/logger');
-const {buildSpendingRewardMessage, buildVIPCommisionMessage, sendMessage} = require('../services/firebaseCloudMessage');
+const { logger } = require('../services/logger');
+const { buildSpendingRewardMessage, buildVIPCommisionMessage, sendMessage } = require('../services/firebaseCloudMessage');
 
 const Member = require('../models/memberModel');
 const Wallet = require('../models/walletModel');
@@ -31,7 +31,7 @@ const processVIPCommision = async (member, amount) => {
             visited.add(currentMember);
 
             // Find the upline member
-            const uplineMember = await Member.findOne({_id: currentMember}).select('_id fullName referralCode referredBy type');
+            const uplineMember = await Member.findOne({ _id: currentMember }).select('_id fullName referralCode referredBy type');
             if (!uplineMember)
                 break;
 
@@ -50,7 +50,7 @@ const processVIPCommision = async (member, amount) => {
             } else if (uplineMember.type !== 'VIP') { //  && level < 3 (commented this for spending reward)
                 logger.info(`Upline Member ${uplineMember.fullName} (Level ${level + 1}) missed on receiving ${percentage}% (RM ${(commission / 100).toFixed(2)})`);
             } else {
-                const uplineWallet = await Wallet.findOne({memberId: uplineMember._id}).select('balance');
+                const uplineWallet = await Wallet.findOne({ memberId: uplineMember._id }).select('balance');
                 if (!uplineWallet) {
                     logger.error(`Wallet not found for upline member ${uplineMember.fullName}`);
                 } else {
@@ -69,7 +69,7 @@ const processVIPCommision = async (member, amount) => {
                     });
 
                     // Send FCM
-                    const message = buildVIPCommisionMessage(commission);
+                    const message = buildVIPCommisionMessage(commission, member);
                     sendMessage(message, uplineMember);
 
                     logger.info(`Upline Member ${uplineMember.fullName} (Level ${level + 1}) received ${percentage}% (RM ${(commission / 100).toFixed(2)})`);
@@ -143,7 +143,7 @@ const processSpendingReward = async (spenderWallet, member, cashbackRate, amount
             visited.add(currentMember);
 
             // Find the upline member
-            const uplineMember = await Member.findOne({_id: currentMember}).select('_id fullName referralCode referredBy type');
+            const uplineMember = await Member.findOne({ _id: currentMember }).select('_id fullName referralCode referredBy type');
             if (!uplineMember)
                 break;
 
@@ -162,7 +162,7 @@ const processSpendingReward = async (spenderWallet, member, cashbackRate, amount
             } else if (uplineMember.type !== 'VIP' && level >= 3) {
                 logger.info(`Upline Member ${uplineMember.fullName} (Level ${level + 1}) missed on receiving ${percentage}% (RM ${(commission / 100).toFixed(2)})`);
             } else {
-                const uplineWallet = await Wallet.findOne({memberId: uplineMember._id}).select('balance');
+                const uplineWallet = await Wallet.findOne({ memberId: uplineMember._id }).select('balance');
                 if (!uplineWallet) {
                     logger.error(`Wallet not found for upline member ${uplineMember.fullName}`);
                 } else {
@@ -204,13 +204,13 @@ const updateMasterCharity = async (charitableAmount) => {
             donationAmount: charitableAmount,
             donationCount: 1
         }
-    }, {upsert: true});
+    }, { upsert: true });
 };
 
 const updateMasterMdr = async (mdrAmount) => {
     await MasterMdr.updateOne({}, {
-        $inc: {mdrAmount}
-    }, {upsert: true});
+        $inc: { mdrAmount }
+    }, { upsert: true });
 };
 
-module.exports = {processVIPCommision, processSpendingReward};
+module.exports = { processVIPCommision, processSpendingReward };
