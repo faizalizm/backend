@@ -3,10 +3,10 @@ const moment = require('moment-timezone');
 const fs = require('fs');
 const path = require('path');
 
-const {logger} = require('../services/logger');
-const {sendMail} = require('../services/nodemailer');
-const {getCategoryToyyib, createBillToyyib, getBillTransactionsToyyib} = require('../services/toyyibpay');
-const {buildTransferMessage, buildQRPaymentMessage, sendMessage} = require('../services/firebaseCloudMessage');
+const { logger } = require('../services/logger');
+const { sendMail } = require('../services/nodemailer');
+const { getCategoryToyyib, createBillToyyib, getBillTransactionsToyyib } = require('../services/toyyibpay');
+const { buildTransferMessage, buildQRPaymentMessage, sendMessage } = require('../services/firebaseCloudMessage');
 
 const Member = require('../models/memberModel');
 const Wallet = require('../models/walletModel');
@@ -17,7 +17,7 @@ const Merchant = require('../models/merchantModel');
 const getWallet = asyncHandler(async (req, res) => {
     // Find the wallet linked to the member
     logger.info('Fetching wallet details');
-    const wallet = await Wallet.findOne({memberId: req.member._id});
+    const wallet = await Wallet.findOne({ memberId: req.member._id });
     if (!wallet) {
         res.status(404);
         throw new Error('Wallet Not Found');
@@ -34,24 +34,24 @@ const getWallet = asyncHandler(async (req, res) => {
             // Withdrawals: Include 'Success' and 'In Progress'
             {
                 $and: [
-                    {description: 'Withdrawal'},
+                    { description: 'Withdrawal' },
                     {
-                        systemType: {$in: ['HubWallet', 'FPX']},
+                        systemType: { $in: ['HubWallet', 'FPX'] },
                         walletId: wallet._id,
-                        status: {$in: ['Success', 'In Progress']},
-                        createdAt: {$gte: ninetyDaysAgo}
+                        status: { $in: ['Success', 'In Progress'] },
+                        createdAt: { $gte: ninetyDaysAgo }
                     }
                 ]
             },
             // All other transactions: Only 'Success'
             {
                 $and: [
-                    {description: {$ne: 'Withdrawal'}},
+                    { description: { $ne: 'Withdrawal' } },
                     {
-                        systemType: {$in: ['HubWallet', 'FPX']},
+                        systemType: { $in: ['HubWallet', 'FPX'] },
                         walletId: wallet._id,
                         status: 'Success',
-                        createdAt: {$gte: ninetyDaysAgo}
+                        createdAt: { $gte: ninetyDaysAgo }
                     }
                 ]
             }
@@ -67,7 +67,7 @@ const getWallet = asyncHandler(async (req, res) => {
         withdrawalDetails: 1,
         shippingStatus: 1,
         shippingDetails: 1
-    }).sort({createdAt: -1});
+    }).sort({ createdAt: -1 });
 
     res.status(200).json({
         balance: wallet.balance,
@@ -79,7 +79,7 @@ const getWallet = asyncHandler(async (req, res) => {
 
 
 const topupWallet = asyncHandler(async (req, res) => {
-    const {paymentChannel, amount} = req.body;
+    const { paymentChannel, amount } = req.body;
 
     if (!paymentChannel || !amount) {
         res.status(400);
@@ -96,8 +96,8 @@ const topupWallet = asyncHandler(async (req, res) => {
 
     logger.info('Fetching topup package');
     const vipPackage = await Package.findOne(
-            {type: 'Topup'},
-            {name: 1, code: 1, categoryCode: 1, packageCharge: 1, emailContent: 1}
+        { type: 'Topup' },
+        { name: 1, code: 1, categoryCode: 1, packageCharge: 1, emailContent: 1 }
     );
 
     if (!vipPackage) {
@@ -108,7 +108,7 @@ const topupWallet = asyncHandler(async (req, res) => {
 
     // Find the wallet linked to the member
     logger.info('Fetching wallet detail');
-    const wallet = await Wallet.findOne({memberId: req.member._id});
+    const wallet = await Wallet.findOne({ memberId: req.member._id });
     if (!wallet) {
         res.status(500);
         throw new Error('Wallet Not Found');
@@ -143,14 +143,14 @@ const topupWallet = asyncHandler(async (req, res) => {
         const paymentUrl = process.env.TOYYIB_URL + '/' + billCode;
 
         // Update the transaction to include the BillCode
-        await Transaction.findByIdAndUpdate(transaction._id, {billCode}, {new : true});
+        await Transaction.findByIdAndUpdate(transaction._id, { billCode }, { new: true });
 
         // Query to ToyyibPay
         logger.info('Fetching ToyyibPay transaction status');
         getBillTransactionsToyyib(req.member._id, wallet._id, amount, billCode, "Top Up");
 
         // Return the response to the client
-        res.status(200).json({paymentUrl, paymentExpiry: billExpiryDate});
+        res.status(200).json({ paymentUrl, paymentExpiry: billExpiryDate });
 
     } catch (error) {
         res.status(500);
@@ -159,7 +159,7 @@ const topupWallet = asyncHandler(async (req, res) => {
 });
 
 const withdrawWallet = asyncHandler(async (req, res) => {
-    const {withdrawChannel, amount, ...otherData} = req.body;
+    const { withdrawChannel, amount, ...otherData } = req.body;
 
     const minWithdrawal = 1000;
 
@@ -181,25 +181,25 @@ const withdrawWallet = asyncHandler(async (req, res) => {
 
     // Find the wallet linked to the member
     logger.info('Fetching wallet details');
-    const wallet = await Wallet.findOne({memberId: req.member._id}, {paymentCode: 0});
+    const wallet = await Wallet.findOne({ memberId: req.member._id }, { paymentCode: 0 });
     if (!wallet) {
         res.status(404);
         throw new Error('Wallet Not Found');
     }
 
-            const transactionData = {
-                    walletId: wallet._id,
-                    systemType: 'HubWallet',
-                    type: 'Debit',
-                    description: 'Withdrawal',
-                    status: 'In Progress',
-                    amount: amount,
+    const transactionData = {
+        walletId: wallet._id,
+        systemType: 'HubWallet',
+        type: 'Debit',
+        description: 'Withdrawal',
+        status: 'In Progress',
+        amount: amount,
         withdrawalDetails: {}
-            };
+    };
 
     if (withdrawChannel === 'Bank') {
-        const {bankDetails} = req.body;
-        const {bankName, bankAccountName, bankAccountNumber} = bankDetails;
+        const { bankDetails } = req.body;
+        const { bankName, bankAccountName, bankAccountNumber } = bankDetails;
         if (!bankName || !bankAccountName || !bankAccountNumber) {
             res.status(400);
             throw new Error('Please provide all bank details');
@@ -217,9 +217,9 @@ const withdrawWallet = asyncHandler(async (req, res) => {
         };
 
     } else if (withdrawChannel === 'MiPay') {
-        const {mipayAccountNumber} = req.body;
+        const { mipayAccountNumber } = req.body;
         if (!mipayAccountNumber) {
-            return res.status(400).json({message: 'Please provide MiPay account number'});
+            return res.status(400).json({ message: 'Please provide MiPay account number' });
         }
 
         transactionData.withdrawalDetails.mipayAccountNumber = mipayAccountNumber;
@@ -264,8 +264,8 @@ const withdrawWallet = asyncHandler(async (req, res) => {
     }
 });
 
-const transferVerification = asyncHandler(async(req, res) => {
-    const {paymentCode, spendingCode, email, phone} = req.body;
+const transferVerification = asyncHandler(async (req, res) => {
+    const { paymentCode, spendingCode, email, phone } = req.body;
 
     let recipientWallet;
     let merchant;
@@ -278,14 +278,14 @@ const transferVerification = asyncHandler(async(req, res) => {
         }
 
         logger.info('Fetching merchant details');
-        merchant = await Merchant.findOne({spendingCode}, {_id: 0, memberId: 1, name: 1, cashbackRate: 1});
+        merchant = await Merchant.findOne({ spendingCode }, { _id: 0, memberId: 1, name: 1, cashbackRate: 1 });
         if (!merchant) {
             res.status(404);
             throw new Error('Merchant not found');
         }
         logger.info(`Merchant - ${merchant.name}`);
 
-        recipientWallet = await Wallet.findOne({memberId: merchant.memberId});
+        recipientWallet = await Wallet.findOne({ memberId: merchant.memberId });
 
         if (!recipientWallet) {
             res.status(404);
@@ -302,7 +302,7 @@ const transferVerification = asyncHandler(async(req, res) => {
         }
 
         logger.info('Fetching recipient wallet details');
-        recipientWallet = await Wallet.findOne({paymentCode});
+        recipientWallet = await Wallet.findOne({ paymentCode });
 
         if (!recipientWallet) {
             res.status(404);
@@ -314,13 +314,13 @@ const transferVerification = asyncHandler(async(req, res) => {
     } else {
         logger.info('Transfer via email/phone');
         if (!email && !phone) {
-            res.status(400).json({error: 'Email or phone is required for transfer'});
+            res.status(400).json({ error: 'Email or phone is required for transfer' });
             return;
         }
 
         logger.info('Checking recipient is ownself');
         if ((email && email.trim() === req.member.email)
-                || phone && phone.trim() === req.member.phone) {
+            || phone && phone.trim() === req.member.phone) {
             res.status(400);
             throw new Error('Could not transfer to your own account');
         }
@@ -329,11 +329,11 @@ const transferVerification = asyncHandler(async(req, res) => {
     logger.info('Fetching recipient details');
     let recipient;
     if (paymentCode || spendingCode) {
-        recipient = await Member.findOne({_id: recipientWallet.memberId}, {fullName: 1, email: 1, phone: 1});
+        recipient = await Member.findOne({ _id: recipientWallet.memberId }, { fullName: 1, email: 1, phone: 1 });
     } else if (email) {
-        recipient = await Member.findOne({email}, {fullName: 1, email: 1, phone: 1});
+        recipient = await Member.findOne({ email }, { fullName: 1, email: 1, phone: 1 });
     } else if (phone) {
-        recipient = await Member.findOne({phone}, {fullName: 1, email: 1, phone: 1});
+        recipient = await Member.findOne({ phone }, { fullName: 1, email: 1, phone: 1 });
     }
 
     if (!recipient) {
@@ -353,7 +353,7 @@ const transferVerification = asyncHandler(async(req, res) => {
 });
 
 const transferWallet = asyncHandler(async (req, res) => {
-    const {email, phone, amount} = req.body;
+    const { email, phone, amount } = req.body;
 
     if (!email && !phone) {
         res.status(400);
@@ -375,10 +375,10 @@ const transferWallet = asyncHandler(async (req, res) => {
     let recipient;
     if (phone) {
         description = 'Transfer via Phone';
-        recipient = await Member.findOne({phone}, {fullName: 1, email: 1, phone: 1});
+        recipient = await Member.findOne({ phone }, { fullName: 1, email: 1, phone: 1 });
     } else if (email) {
         description = 'Transfer via Email';
-        recipient = await Member.findOne({email}, {fullName: 1, email: 1, phone: 1});
+        recipient = await Member.findOne({ email }, { fullName: 1, email: 1, phone: 1 });
     }
 
     if (!recipient) {
@@ -387,14 +387,14 @@ const transferWallet = asyncHandler(async (req, res) => {
     }
 
     logger.info('Fetching sender wallet details');
-    const senderWallet = await Wallet.findOne({memberId: req.member._id});
+    const senderWallet = await Wallet.findOne({ memberId: req.member._id });
     if (!senderWallet) {
         res.status(404);
         throw new Error('Sender wallet not found');
     }
 
     logger.info('Fetching recipient wallet details');
-    const recipientWallet = await Wallet.findOne({memberId: recipient._id});
+    const recipientWallet = await Wallet.findOne({ memberId: recipient._id });
     if (!recipientWallet) {
         res.status(404);
         throw new Error('Recipient wallet not found');
@@ -445,7 +445,7 @@ const transferWallet = asyncHandler(async (req, res) => {
 
         // Send FCM
         logger.info('Notifying recipient via FCM');
-        const message = buildTransferMessage(amount);
+        const message = buildTransferMessage(amount, req.member);
         sendMessage(message, recipient);
 
         res.status(200).json({
@@ -459,7 +459,7 @@ const transferWallet = asyncHandler(async (req, res) => {
 });
 
 const qrPayment = asyncHandler(async (req, res) => {
-    const {paymentCode, amount} = req.body;
+    const { paymentCode, amount } = req.body;
 
     if (!paymentCode) {
         res.status(400);
@@ -475,7 +475,7 @@ const qrPayment = asyncHandler(async (req, res) => {
     }
 
     logger.info('Fetching sender wallet details');
-    const senderWallet = await Wallet.findOne({memberId: req.member._id});
+    const senderWallet = await Wallet.findOne({ memberId: req.member._id });
     if (!senderWallet) {
         res.status(404);
         throw new Error('Sender Wallet Not Found');
@@ -489,7 +489,7 @@ const qrPayment = asyncHandler(async (req, res) => {
     }
 
     logger.info('Fetching recipient wallet details');
-    const recipientWallet = await Wallet.findOne({paymentCode});
+    const recipientWallet = await Wallet.findOne({ paymentCode });
     if (!recipientWallet) {
         res.status(404);
         throw new Error('Recipient Not Found');
@@ -500,7 +500,7 @@ const qrPayment = asyncHandler(async (req, res) => {
     logger.info(`Recipient balance : RM ${recipientWallet.balance / 100}, Receiving amount : RM ${amount / 100}`);
 
     logger.info('Fetching recipient details');
-    const recipient = await Member.findOne({_id: recipientWallet.memberId}, {fullName: 1, email: 1, phone: 1});
+    const recipient = await Member.findOne({ _id: recipientWallet.memberId }, { fullName: 1, email: 1, phone: 1 });
     if (!recipient) {
         res.status(404);
         throw new Error('Recipient Not Found');
@@ -545,7 +545,7 @@ const qrPayment = asyncHandler(async (req, res) => {
 
         // Send FCM
         logger.info('Notifying recipient via FCM');
-        const message = buildQRPaymentMessage(amount);
+        const message = buildQRPaymentMessage(amount, req.member);
         sendMessage(message, recipient);
 
         res.status(200).json({
@@ -561,7 +561,7 @@ const qrPayment = asyncHandler(async (req, res) => {
 const genQRCode = asyncHandler(async (req, res) => {
     // Find the wallet linked to the member
     logger.info('Fetching wallet details');
-    const wallet = await Wallet.findOne({memberId: req.member._id});
+    const wallet = await Wallet.findOne({ memberId: req.member._id });
     if (!wallet) {
         res.status(404);
         throw new Error('Wallet Not Found');
@@ -571,9 +571,9 @@ const genQRCode = asyncHandler(async (req, res) => {
         // Generates the QR code image from text
         // const qrCodeBase64 = await qrcode.toDataURL(wallet.paymentCode);
 
-        res.status(200).json({qrCode: wallet.paymentCode});
+        res.status(200).json({ qrCode: wallet.paymentCode });
     } catch (error) {
-        res.status(500).json({message: 'Error generating QR code', error: error.message});
+        res.status(500).json({ message: 'Error generating QR code', error: error.message });
     }
 });
 
@@ -584,28 +584,28 @@ const sendWithdrawalNotification = async (member, transaction) => {
     if (transaction.withdrawalDetails.type === "Bank") {
         htmlContent = fs.readFileSync(path.join(__dirname, '..', 'email', 'walletWithdrawal.html'), 'utf-8');
         htmlContent = htmlContent
-                .replace('${bankName}', transaction.withdrawalDetails.bankDetails.bankName || 'N/A')
-                .replace('${bankAccountName}', transaction.withdrawalDetails.bankDetails.bankAccountName || 'N/A')
-                .replace('${bankAccountNumber}', transaction.withdrawalDetails.bankDetails.bankAccountNumber || 'N/A')
-                .replace('${mipayAccountNumber}', '');
+            .replace('${bankName}', transaction.withdrawalDetails.bankDetails.bankName || 'N/A')
+            .replace('${bankAccountName}', transaction.withdrawalDetails.bankDetails.bankAccountName || 'N/A')
+            .replace('${bankAccountNumber}', transaction.withdrawalDetails.bankDetails.bankAccountNumber || 'N/A')
+            .replace('${mipayAccountNumber}', '');
     } else if (transaction.withdrawalDetails.type === "MiPay") {
         htmlContent = fs.readFileSync(path.join(__dirname, '..', 'email', 'walletWithdrawalCard.html'), 'utf-8');
         htmlContent = htmlContent
-                .replace('${mipayAccountNumber}', transaction.withdrawalDetails.mipayAccountNumber || 'N/A')
-                .replace('${bankName}', '')
-                .replace('${bankAccountName}', '')
-                .replace('${bankAccountNumber}', '');
+            .replace('${mipayAccountNumber}', transaction.withdrawalDetails.mipayAccountNumber || 'N/A')
+            .replace('${bankName}', '')
+            .replace('${bankAccountName}', '')
+            .replace('${bankAccountNumber}', '');
     }
 
     htmlContent = htmlContent
-            .replace('${member.fullName}', member.fullName)
-            .replace('${member.email}', member.email)
-            .replace('${member.phone}', member.phone)
-            .replace('${amount}', `RM ${(transaction.amount / 100).toFixed(2)}`);
+        .replace('${member.fullName}', member.fullName)
+        .replace('${member.email}', member.email)
+        .replace('${member.phone}', member.phone)
+        .replace('${amount}', `RM ${(transaction.amount / 100).toFixed(2)}`);
 
     let mailId = 'withdrawal';
     let subject = 'Reward Hub Cash Withdrawal Request';
     await sendMail(mailId, subject, htmlContent);
 };
 
-module.exports = {getWallet, topupWallet, withdrawWallet, transferVerification, transferWallet, qrPayment, genQRCode};
+module.exports = { getWallet, topupWallet, withdrawWallet, transferVerification, transferWallet, qrPayment, genQRCode };

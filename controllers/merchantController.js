@@ -1,18 +1,19 @@
 const crypto = require('crypto');
 const asyncHandler = require('express-async-handler');
 
-const {logger} = require('../services/logger');
-const {resizeImage} = require('../services/sharp');
+const { logger } = require('../services/logger');
+const { resizeImage } = require('../services/sharp');
 
 const Member = require('../models/memberModel');
 const Merchant = require('../models/merchantModel');
 const Wallet = require('../models/walletModel');
 const Transaction = require('../models/transactionModel');
 
-const {processSpendingReward} = require('../controllers/commisionController');
+const { processSpendingReward } = require('../controllers/commisionController');
+const { buildMerchantQRPaymentMessage } = require('../services/firebaseCloudMessage');
 
 const searchMerchant = asyncHandler(async (req, res) => {
-    const {field, term, page = 1, limit = 5} = req.query;
+    const { field, term, page = 1, limit = 5 } = req.query;
 
     if (!field || !term) {
         res.status(400);
@@ -21,11 +22,11 @@ const searchMerchant = asyncHandler(async (req, res) => {
 
     // Get the list of valid fields dynamically from the schema
     const validFields = Object.keys(Merchant.schema.paths).filter(
-            (fieldName) =>
-        fieldName !== '_id' &&
-                fieldName !== 'memberId' &&
-                fieldName !== 'logo' &&
-                fieldName !== 'spendingCode'
+        (fieldName) =>
+            fieldName !== '_id' &&
+            fieldName !== 'memberId' &&
+            fieldName !== 'logo' &&
+            fieldName !== 'spendingCode'
     );
 
     // Check if the provided field is valid
@@ -37,7 +38,7 @@ const searchMerchant = asyncHandler(async (req, res) => {
 
     try {
         const searchQuery = {
-            [field]: {$regex: term, $options: 'i'}
+            [field]: { $regex: term, $options: 'i' }
         };
 
         // Perform the search
@@ -47,9 +48,9 @@ const searchMerchant = asyncHandler(async (req, res) => {
         logger.info(`Fetching merchants - Field : ${field}, Term : ${term}, Page : ${page}, Limit : ${limit}`);
         // Fetch one extra to detect if there's a next page
         const skip = (parseInt(page) - 1) * parseInt(limit);
-        const result = await Merchant.find(searchQuery, {_id: 0, memberId: 0, spendingCode: 0})
-                .skip(skip)
-                .limit(parseInt(limit) + 1);
+        const result = await Merchant.find(searchQuery, { _id: 0, memberId: 0, spendingCode: 0 })
+            .skip(skip)
+            .limit(parseInt(limit) + 1);
 
         hasNextPage = result.length > limit;
         merchants = hasNextPage ? result.slice(0, limit) : result;
@@ -80,7 +81,7 @@ const searchMerchant = asyncHandler(async (req, res) => {
 
 const getMerchant = asyncHandler(async (req, res) => {
     logger.info('Fetching merchant details');
-    const merchant = await Merchant.findOne({memberId: req.member._id}, {_id: 0, memberId: 0, spendingCode: 0, __v: 0});
+    const merchant = await Merchant.findOne({ memberId: req.member._id }, { _id: 0, memberId: 0, spendingCode: 0, __v: 0 });
 
     if (merchant) {
         logger.info(`Merchant - ${merchant.name}`);
@@ -93,7 +94,7 @@ const getMerchant = asyncHandler(async (req, res) => {
 
 const registerMerchant = asyncHandler(async (req, res) => {
     logger.info('Fetching merchant details');
-    const existingMerchant = await Merchant.findOne({memberId: req.member._id}, {_id: 1});
+    const existingMerchant = await Merchant.findOne({ memberId: req.member._id }, { _id: 1 });
     if (existingMerchant) {
         res.status(400);
         throw new Error('Merchant already registered');
@@ -108,8 +109,8 @@ const registerMerchant = asyncHandler(async (req, res) => {
 
         // Check if the spending code already exists in the database
         const existingSpendingCode = await Merchant.findOne(
-                {spendingCode},
-                {_id: 1}
+            { spendingCode },
+            { _id: 1 }
         );
         if (!existingSpendingCode) {
             isSpendingCodeUnique = true; // If no existing merchant found, the code is unique
@@ -133,12 +134,12 @@ const registerMerchant = asyncHandler(async (req, res) => {
 
 const updateMerchant = asyncHandler(async (req, res) => {
     // Remove restricted fields
-    const {_id, memberId, createdAt, updatedAt, spendingCode, ...updates} = req.body;
+    const { _id, memberId, createdAt, updatedAt, spendingCode, ...updates } = req.body;
 
     // Find merchant
     logger.info('Fetching merchant details');
-    const merchant = await Merchant.findOne({memberId: req.member._id},
-            {spendingCode: 0}
+    const merchant = await Merchant.findOne({ memberId: req.member._id },
+        { spendingCode: 0 }
     );
     if (!merchant) {
         res.status(404);
@@ -149,7 +150,7 @@ const updateMerchant = asyncHandler(async (req, res) => {
     try {
         logger.info('Updating merchant details');
         const updatedMerchant = await Merchant.findByIdAndUpdate(merchant._id, updates, {
-            new : true,
+            new: true,
             runValidators: true // Ensures schema validation is applied
         });
 
@@ -169,7 +170,7 @@ const updateMerchant = asyncHandler(async (req, res) => {
 });
 
 const qrSpending = asyncHandler(async (req, res) => {
-    const {spendingCode, amount} = req.body;
+    const { spendingCode, amount } = req.body;
 
     if (!spendingCode) {
         res.status(400);
@@ -185,10 +186,10 @@ const qrSpending = asyncHandler(async (req, res) => {
     }
 
     logger.info(`Fetching sender details`);
-    const senderMerchant = await Merchant.findOne({memberId: req.member._id}, {_id: 1, memberId: 1, spendingCode: 1});
+    const senderMerchant = await Merchant.findOne({ memberId: req.member._id }, { _id: 1, memberId: 1, spendingCode: 1 });
 
     logger.info('Fetching sender wallet details');
-    const senderWallet = await Wallet.findOne({memberId: req.member._id});
+    const senderWallet = await Wallet.findOne({ memberId: req.member._id });
     if (!senderWallet) {
         res.status(404);
         throw new Error('Sender wallet not found');
@@ -202,14 +203,14 @@ const qrSpending = asyncHandler(async (req, res) => {
     }
 
     logger.info('Fetching merchant details');
-    const recipientMerchant = await Merchant.findOne({spendingCode}, {_id: 1, memberId: 1, spendingCode: 1, cashbackRate: 1});
+    const recipientMerchant = await Merchant.findOne({ spendingCode }, { _id: 1, memberId: 1, spendingCode: 1, cashbackRate: 1 });
     if (!recipientMerchant) {
         res.status(404);
         throw new Error('Merchant not found');
     }
     logger.info(`Merchant : ${recipientMerchant.name}`);
 
-    const recipientWallet = await Wallet.findOne({memberId: recipientMerchant.memberId});
+    const recipientWallet = await Wallet.findOne({ memberId: recipientMerchant.memberId });
     if (!recipientWallet) {
         res.status(404);
         throw new Error('Merchant not found');
@@ -260,6 +261,11 @@ const qrSpending = asyncHandler(async (req, res) => {
         logger.info(`New sender balance: ${senderWallet.balance}`);
         logger.info(`New merchant balance: ${recipientWallet.balance}`);
 
+        // Send FCM
+        logger.info('Notifying merchant via FCM');
+        const message = buildMerchantQRPaymentMessage(amount, receivingAmount, req.member);
+        sendMessage(message, recipient);
+
         // Process spending reward (Asynchronously)
         processSpendingReward(senderWallet, req.member, recipientMerchant.cashbackRate, amount);
 
@@ -276,7 +282,7 @@ const qrSpending = asyncHandler(async (req, res) => {
 const genQRCode = asyncHandler(async (req, res) => {
     // Find the merchant linked to the member
     logger.info('Fetching merchant details');
-    const merchant = await Merchant.findOne({memberId: req.member._id}, {_id: 0, name: 1, spendingCode: 1, cashbackRate: 1});
+    const merchant = await Merchant.findOne({ memberId: req.member._id }, { _id: 0, name: 1, spendingCode: 1, cashbackRate: 1 });
     if (!merchant) {
         res.status(404);
         throw new Error('Merchant not found');
@@ -286,7 +292,7 @@ const genQRCode = asyncHandler(async (req, res) => {
     try {
         res.status(200).json(merchant);
     } catch (error) {
-        res.status(500).json({message: 'Error generating QR code', error: error.message});
+        res.status(500).json({ message: 'Error generating QR code', error: error.message });
     }
 });
 
@@ -297,4 +303,4 @@ const generateSpendingCode = () => {
     return randomString.replace(/\+/g, '0').replace(/\//g, '1'); // Replace unsafe characters to avoid issues
 };
 
-module.exports = {searchMerchant, getMerchant, registerMerchant, updateMerchant, qrSpending, genQRCode};
+module.exports = { searchMerchant, getMerchant, registerMerchant, updateMerchant, qrSpending, genQRCode };

@@ -536,9 +536,11 @@ const getMember = asyncHandler(async (req, res) => {
             member.referredBy = 'Not Set';
         } else {
             logger.info('Fetching referrer details');
-            const referrer = await Member.findOne({ _id: req.member.referredBy }, { _id: 0, fullName: 1 });
+            const referrer = await Member.findOne({ _id: req.member.referredBy }, { _id: 0, fullName: 1, userName: 1 }).lean();;
             if (referrer) {
-                member.referredBy = referrer.fullName;
+                member.referredBy = referrer
+                    ? (referrer.userName?.trim() || referrer.fullName || 'Unknown')
+                    : 'Unknown';
             }
         }
 
