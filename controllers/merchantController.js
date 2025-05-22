@@ -210,6 +210,13 @@ const qrSpending = asyncHandler(async (req, res) => {
     }
     logger.info(`Merchant : ${recipientMerchant.name}`);
 
+    logger.info('Fetching member details');
+    let recipientMember = await Member.findById(recipientMerchant.memberId, { _id: 1 });
+    if (!recipientMember) {
+        res.status(404);
+        throw new Error('Member not found');
+    }
+
     const recipientWallet = await Wallet.findOne({ memberId: recipientMerchant.memberId });
     if (!recipientWallet) {
         res.status(404);
@@ -264,7 +271,7 @@ const qrSpending = asyncHandler(async (req, res) => {
         // Send FCM
         logger.info('Notifying merchant via FCM');
         const message = buildMerchantQRPaymentMessage(amount, receivingAmount, req.member);
-        sendMessage(message, recipient);
+        sendMessage(message, recipientMember);
 
         // Process spending reward (Asynchronously)
         processSpendingReward(senderWallet, req.member, recipientMerchant.cashbackRate, amount);
