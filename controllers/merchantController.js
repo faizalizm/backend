@@ -10,7 +10,7 @@ const Wallet = require('../models/walletModel');
 const Transaction = require('../models/transactionModel');
 
 const { processSpendingReward } = require('../controllers/commisionController');
-const { buildMerchantQRPaymentMessage } = require('../services/firebaseCloudMessage');
+const { buildMerchantQRPaymentMessage, sendMessage } = require('../services/firebaseCloudMessage');
 
 const searchMerchant = asyncHandler(async (req, res) => {
     const { field, term, page = 1, limit = 5 } = req.query;
