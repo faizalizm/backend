@@ -125,7 +125,7 @@ const topupWallet = asyncHandler(async (req, res) => {
         const transaction = await Transaction.create({
             walletId: wallet._id,
             systemType: 'HubWallet',
-            type: 'N/A',
+            type: 'Credit',
             description: 'Top Up',
             status: 'In Progress',
             packageCode: vipPackage.code,
