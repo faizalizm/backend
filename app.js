@@ -106,13 +106,17 @@ app.use((req, res, next) => {
     next();
 });
 
+const redactBase64Images = (str) => {
+    return str.replace(/(data:image\/[a-zA-Z]+;base64,)[^"]+/g, '$1[REDACTED]');
+}
+
 const requestFormat = (tokens, req, res) => {
     const method = tokens.method(req, res);
     const url = tokens.url(req, res);
     const ip = req.ip;
-    const body = JSON.stringify(req.body);
-    const params = JSON.stringify(req.params);
-    const query = JSON.stringify(req.query);
+    const body = redactBase64Images(JSON.stringify(req.body));
+    const params = redactBase64Images(JSON.stringify(req.params));
+    const query = redactBase64Images(JSON.stringify(req.query));
 
     return `${colors.cyan(method)} ${colors.cyan(url)} | IP ${colors.magenta(ip)} | Body: ${colors.green(body)} | Params: ${colors.green(params)} | Query: ${colors.green(query)}`;
 };
@@ -121,10 +125,8 @@ const responseFormat = (tokens, req, res) => {
     const method = tokens.method(req, res);
     const url = tokens.url(req, res);
     const ip = req.ip;
-    let body = res.body || '';
-    if (body.length > 1000) {
-        body = body.slice(0, 1000) + '...'; // Add ellipsis to indicate trimming
-    }
+    let body = redactBase64Images(res.body) || '';
+
     const status = tokens.status(req, res);
     const contentLength = Buffer.byteLength(body).toString();
     const responseTime = Math.trunc(tokens['response-time'](req, res));

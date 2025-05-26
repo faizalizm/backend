@@ -9,9 +9,9 @@ const charitySchema = new mongoose.Schema({
             validator: function (value) {
                 // Ensure the string is a valid Base64 image format (basic validation)
                 return (
-                        value === null ||
-                        /^data:image\/(jpg|jpeg|png);base64,/.test(value)
-                        );
+                    value === null ||
+                    /^data:image\/(jpg|jpeg|png|webp);base64,/.test(value)
+                );
             },
             message: 'Invalid Base64 Image Format.'
         }
