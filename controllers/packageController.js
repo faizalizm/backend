@@ -3,16 +3,16 @@ const moment = require('moment-timezone');
 const fs = require('fs');
 const path = require('path');
 
-const {logger} = require('../services/logger');
-const {sendMail} = require('../services/nodemailer');
-const {getCategoryToyyib, createBillToyyib, getBillTransactionsToyyib} = require('../services/toyyibpay');
-const {resizeImage} = require('../services/sharp');
+const { logger } = require('../services/logger');
+const { sendMail } = require('../services/nodemailer');
+const { getCategoryToyyib, createBillToyyib, getBillTransactionsToyyib } = require('../services/toyyibpay');
+const { resizeImage } = require('../services/sharp');
 
 const Package = require('../models/packageModel');
 const Wallet = require('../models/walletModel');
 const Transaction = require('../models/transactionModel');
 
-const {processVIPCommision} = require('../controllers/commisionController');
+const { processVIPCommision } = require('../controllers/commisionController');
 
 const sendShippingNotification = async (member, transaction) => {
     // Fetch and modify HTML template
@@ -21,7 +21,7 @@ const sendShippingNotification = async (member, transaction) => {
 
     htmlContent = htmlContent.replace('${packageCode}', `${transaction.packageCode}`);
     htmlContent = htmlContent.replace('${fullName}', `${member.fullName}`);
-    
+
     htmlContent = htmlContent.replace('${phone}', `${transaction.shippingDetails.phone}`);
     htmlContent = htmlContent.replace('${addressLine1}', `${transaction.shippingDetails.addressLine1}`);
     htmlContent = htmlContent.replace('${addressLine2}', `${transaction.shippingDetails.addressLine2 || ''}`);
@@ -45,11 +45,11 @@ const getPackage = asyncHandler(async (req, res) => {
 
     logger.info('Fetching packages - Status : Not inactive');
     const vipPackage = await Package.find(
-            {
-                type: 'VIP',
-                status: {$ne: 'Inactive'}
-            },
-            {_id: 0, picture: 1, type: 1, name: 1, description: 1, price: 1, code: 1}
+        {
+            type: 'VIP',
+            status: { $ne: 'Inactive' }
+        },
+        { _id: 0, picture: 1, type: 1, name: 1, description: 1, price: 1, code: 1 }
     );
 
     logger.info('Resizing packages picture');
@@ -68,7 +68,7 @@ const getPackage = asyncHandler(async (req, res) => {
 });
 
 const purchasePackage = asyncHandler(async (req, res) => {
-    const {code, paymentChannel} = req.body;
+    const { code, paymentChannel } = req.body;
 
     if (!paymentChannel) { // To determine payment method
         res.status(400);
@@ -92,8 +92,8 @@ const purchasePackage = asyncHandler(async (req, res) => {
 
     logger.info('Fetching VIP packages');
     const vipPackage = await Package.findOne(
-            {code, type: 'VIP'},
-            {name: 1, price: 1, categoryCode: 1, packageCharge: 1, emailContent: 1}
+        { code, type: 'VIP' },
+        { name: 1, price: 1, categoryCode: 1, packageCharge: 1, emailContent: 1 }
     );
 
     if (!vipPackage) {
@@ -108,8 +108,8 @@ const purchasePackage = asyncHandler(async (req, res) => {
     // Find the wallet linked to the member
     logger.info('Fetching wallet details');
     const wallet = await Wallet.findOne(
-            {memberId: req.member._id},
-            {paymentCode: 0}
+        { memberId: req.member._id },
+        { paymentCode: 0 }
     );
 
     if (!wallet) {
@@ -147,8 +147,8 @@ const purchasePackage = asyncHandler(async (req, res) => {
             status: 'Success',
             packageCode: code,
             amount: vipPackage.price,
-            ...(req.member.shippingDetails && {shippingStatus: 'Preparing'}),
-            ...(req.member.shippingDetails && {shippingDetails: req.member.shippingDetails})
+            ...(req.member.shippingDetails && { shippingStatus: 'Preparing' }),
+            ...(req.member.shippingDetails && { shippingDetails: req.member.shippingDetails })
         });
 
         // Process VIP Referral Commission
@@ -182,14 +182,14 @@ const purchasePackage = asyncHandler(async (req, res) => {
             logger.info('Creating in progress transaction');
             const transaction = await Transaction.create({
                 walletId: wallet._id,
-                systemType: 'FPX',
-                type: 'N/A',
+                systemType: 'HubWallet',
+                type: 'Credit',
                 description: 'VIP Payment',
                 status: 'In Progress',
                 packageCode: code,
                 amount: vipPackage.price,
-                ...(req.member.shippingDetails && {shippingStatus: 'Preparing'}),
-                ...(req.member.shippingDetails && {shippingDetails: req.member.shippingDetails})
+                ...(req.member.shippingDetails && { shippingStatus: 'Preparing' }),
+                ...(req.member.shippingDetails && { shippingDetails: req.member.shippingDetails })
             });
 
             if (!transaction) {
@@ -202,14 +202,14 @@ const purchasePackage = asyncHandler(async (req, res) => {
             const paymentUrl = process.env.TOYYIB_URL + '/' + billCode;
 
             // Update the transaction to include the BillCode
-            await Transaction.findByIdAndUpdate(transaction._id, {billCode}, {new : true});
+            await Transaction.findByIdAndUpdate(transaction._id, { billCode }, { new: true });
 
             // Query to ToyyibPay
             logger.info('Fetching ToyyibPay transaction status');
             getBillTransactionsToyyib(req.member._id, wallet._id, vipPackage.price, billCode, "VIP Payment");
 
             // Return the response to the client
-            res.status(200).json({paymentUrl, paymentExpiry: billExpiryDate});
+            res.status(200).json({ paymentUrl, paymentExpiry: billExpiryDate });
 
         } catch (error) {
             res.status(500);
@@ -227,7 +227,7 @@ const purchasePackage = asyncHandler(async (req, res) => {
 
 const purchaseCallbackPackage = asyncHandler(async (req, res) => {
     logger.info('Receiving ToyyibPay callback');
-    res.status(200).json({message: 'OK'});
+    res.status(200).json({ message: 'OK' });
 });
 
-module.exports = {getPackage, purchasePackage, purchaseCallbackPackage, sendShippingNotification};
+module.exports = { getPackage, purchasePackage, purchaseCallbackPackage, sendShippingNotification };
