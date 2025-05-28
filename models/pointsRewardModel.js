@@ -42,9 +42,8 @@ const pointsRewardSchema = new mongoose.Schema({
         min: [0, 'Points requirement must be a positive number']
     },
     priority: {
-        type: String,
-        required: [true, 'Please specify priority'],
-        trim: true
+        type: Number,
+        required: [true, 'Please specify priority']
     },
     status: {
         type: String,
