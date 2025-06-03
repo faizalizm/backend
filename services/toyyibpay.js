@@ -46,7 +46,7 @@ const createBillToyyib = async (req, res, amount, vipPackage, getCategory, billE
         const callbackUrl = TOYYIB_CALLBACK_URL.replace('<IP>', IP);
         let createBillResponse;
 
-        const createBillParams = {
+        let createBillParams = {
             userSecretKey: TOYYIB_SECRET,
             categoryCode: vipPackage.categoryCode,
             billName: vipPackage.name,
@@ -61,11 +61,13 @@ const createBillToyyib = async (req, res, amount, vipPackage, getCategory, billE
 //                    billPhone: req.member.phone,
             billContentEmail: vipPackage.emailContent, // Max 1000 chars
             billPaymentChannel: 2, // 0 = FPX || 1 = CC || 2 = BOTH
-            billChargeToCustomer: 0, // 0 = Charge bill to cust || Off if charge owner
+//            billChargeToCustomer: 0, // 0 = Charge bill to cust || Off if charge owner
             billExpiryDate: billExpiryDate // Current Time + 5 Minute, e.g. 17-12-2020 17:00:00
 //            enableFPXB2B: 1, // 1 = FPX (Corporate Banking) payment channel
 //            chargeFPXB2B: vipPackage.packageCharge // 0 = Charge owner || 1 = Charge bill owner
         };
+
+        vipPackage.packageCharge === 0 && (createBillParams.billChargeToCustomer = 0);  // 0 = Charge bill to cust || Off if charge owner
 
         console.table(createBillParams);
 
