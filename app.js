@@ -107,6 +107,7 @@ app.use((req, res, next) => {
 });
 
 const redactBase64Images = (str) => {
+    if (typeof str !== 'string') return '';
     return str.replace(/(data:image\/[a-zA-Z]+;base64,)[^"]+/g, '$1[REDACTED]');
 }
 
