@@ -8,6 +8,8 @@ const { sendMail } = require('../services/nodemailer');
 const { getCategoryToyyib, createBillToyyib, getBillTransactionsToyyib } = require('../services/toyyibpay');
 const { buildTransferMessage, buildQRPaymentMessage, sendMessage } = require('../services/firebaseCloudMessage');
 
+const { formatAmount } = require('../utility/formatter');
+
 const Member = require('../models/memberModel');
 const Wallet = require('../models/walletModel');
 const Package = require('../models/packageModel');
@@ -81,9 +83,17 @@ const getWallet = asyncHandler(async (req, res) => {
 const topupWallet = asyncHandler(async (req, res) => {
     const { paymentChannel, amount } = req.body;
 
+    const minTopupAmount = 1000;
+
     if (!paymentChannel || !amount) {
         res.status(400);
         throw new Error('Payment channel and amount are required');
+    }
+
+    logger.info(`Checking minimum topup - Amount : ${amount}, Minimum topup : ${minTopupAmount}`);
+    if (amount < minTopupAmount) {
+        res.status(400);
+        throw new Error(`Topup amount must be at least ${formatAmount(minTopupAmount)}`);
     }
 
     let paymentChannelToyyib;

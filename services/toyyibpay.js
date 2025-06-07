@@ -39,7 +39,6 @@ const getCategoryToyyib = async (req, res, code) => {
     }
 };
 
-
 const createBillToyyib = async (req, res, amount, vipPackage, getCategory, billExpiryDate) => {
     try {
         const toyyibCreateBillUrl = `${TOYYIB_URL}/index.php/api/createBill`;
@@ -67,7 +66,10 @@ const createBillToyyib = async (req, res, amount, vipPackage, getCategory, billE
 //            chargeFPXB2B: vipPackage.packageCharge // 0 = Charge owner || 1 = Charge bill owner
         };
 
-        vipPackage.packageCharge === 0 && (createBillParams.billChargeToCustomer = 0);  // 0 = Charge bill to cust || Off if charge owner
+        if (amount < Number(process.env.TOYYIB_MIN_AMT_CHARGE_COMPANY)) {
+            // fee charged to company by default, add field below to charge cust
+            createBillParams.billChargeToCustomer = 0;  // 0 = Charge fee to cust
+        }
 
         console.table(createBillParams);
 
