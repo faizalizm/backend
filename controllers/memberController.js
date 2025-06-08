@@ -16,20 +16,20 @@ const Wallet = require('../models/walletModel');
 const Otp = require('../models/otpModel');
 
 const registerMember = asyncHandler(async (req, res) => {
-    const { userName, fullName, email, password, phone, referredBy } = req.body;
+    let { userName, fullName, email, password, phone, referredBy } = req.body;
 
-    if (!userName || !fullName || !email || !password || !phone || !referredBy) {
+    if (!email || !password || !referredBy) {
         res.status(400);
         throw new Error('Please add all fields');
     }
 
-    if (!/^[a-zA-Z0-9_-]+$/.test(userName)) {
+    if (userName && !/^[a-zA-Z0-9_-]+$/.test(userName)) {
         res.status(400);
         throw new Error('Username can only contain letters, numbers, underscores, and dashes');
     }
 
     // Check if fullName contains numbers and reject if true
-    if (/\d/.test(fullName)) {
+    if (fullName && /\d/.test(fullName)) {
         res.status(400);
         throw new Error('Full name cannot contain numbers');
     }
@@ -42,12 +42,20 @@ const registerMember = asyncHandler(async (req, res) => {
 
     // Check if member is already registered
     logger.info('Fetching member details');
-    const memberDetails = await Member.findOne({
-        $or: [
+    const orConditions = [
             { email: email.toLowerCase() }, // Check for existing email
-            { phone: phone },  // Check for existing phone number
-            { userName: userName.toLowerCase() }
-        ]
+
+    ];
+
+    if (phone) {
+        orConditions.push({ phone });
+    }
+    if (userName) {
+        orConditions.push({ userName: userName.toLowerCase() }); // Check for existing phone number
+    }
+
+    const memberDetails = await Member.findOne({
+        $or: orConditions
     });
 
     logger.info('Checking field uniqueness');
@@ -56,11 +64,11 @@ const registerMember = asyncHandler(async (req, res) => {
             res.status(400);
             throw new Error('Email has been taken');
         }
-        if (memberDetails.phone === phone) {
+        if (phone && memberDetails.phone === phone) {
             res.status(400);
             throw new Error('Phone number has been taken');
         }
-        if (memberDetails.userName === userName.toLowerCase()) {
+        if (userName && memberDetails.userName === userName.toLowerCase()) {
             res.status(400);
             throw new Error('Username has been taken');
         }
@@ -91,23 +99,30 @@ const registerMember = asyncHandler(async (req, res) => {
 
     // Generate Referral Code
     logger.info('Generating referrer code');
+    let refCodeSource = fullName?.trim() ? fullName : userName || 'HUB';
     let isReferralCodeUnique = false;
     let memberReferralCode;
     while (!isReferralCodeUnique) {
-        memberReferralCode = generateReferralCode(fullName); // Generate a new referral code
+        memberReferralCode = generateReferralCode(refCodeSource); // Generate a new referral code
 
         // Check if the referral code already exists in the database
-        const existingReferralCode = await Member.findOne({ referralCode: memberReferralCode });
+        const existingReferralCode = await Member.findOne({
+            $or: [
+                { referralCode: memberReferralCode },
+                { userName: memberReferralCode.toLowerCase() }
+            ]
+        });
 
         if (!existingReferralCode) {
             isReferralCodeUnique = true; // If no existing member found, the code is unique
         }
     }
 
+    try {
     // Create Member
     logger.info('Creating member');
     const member = await Member.create({
-        userName: userName.toLowerCase(),
+            userName: userName?.toLowerCase() || memberReferralCode,
         fullName,
         email: email.toLowerCase(),
         password: hashedPassword,
@@ -140,7 +155,6 @@ const registerMember = asyncHandler(async (req, res) => {
         paymentCode
     });
 
-    try {
         if (member) {// If there is a referrer, add the new member to their referral list
             if (referrer) {
                 // Find the level 1 entry (without referrerId for direct upline)
@@ -164,7 +178,7 @@ const registerMember = asyncHandler(async (req, res) => {
                     levelEntry.referrals.push(newReferral);
                 }
 
-                logger.info(`Added ${member.fullName} to ${referrer.fullName}'s Level 1 referrals`);
+                logger.info(`Added ${member.email} to ${referrer.email}'s Level 1 referrals`);
 
                 // Save the referrer with the new referral added
                 await referrer.save();
@@ -202,7 +216,7 @@ const registerMember = asyncHandler(async (req, res) => {
                     }
 
                     await currentReferrer.save();
-                    logger.info(`Added ${referrer.fullName} to ${currentReferrer.fullName}'s Level ${currentLevel} referrals`);
+                    logger.info(`Added ${referrer.email} to ${currentReferrer.email}'s Level ${currentLevel} referrals`);
 
                     // Move up the referral chain, updating the referrer for the next level
                     //                referrer = currentReferrer;
