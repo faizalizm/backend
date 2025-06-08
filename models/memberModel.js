@@ -21,7 +21,7 @@ const memberSchema = new mongoose.Schema({
     },
     fullName: {
         type: String,
-        required: [true, 'Please specify name'],
+        // required: [true, 'Please specify name'],
         trim: true
     },
     userName: {
@@ -51,9 +51,10 @@ const memberSchema = new mongoose.Schema({
     },
     phone: {
         type: String,
-        required: [true, 'Please specify phone'],
+        // required: [true, 'Please specify phone'],
         unique: true, // Prevent register phone twice
-        trim: true
+        trim: true,
+        sparse: true
     },
     refreshToken: {
         type: String,
