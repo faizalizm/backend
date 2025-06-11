@@ -867,14 +867,14 @@ const getRecentVIP = async () => {
                 //                    vipAt: {$gte: recentPeriod}}, // Filter by vipAt >= 48 hours ago}, // Match members with type VIP
             },
             {
-                profilePicture: 1,
+                // profilePicture: 1,
                 fullName: 1,
                 vipAt: 1,
                 _id: 0 // Exclude the _id field
             }
         )
             .sort({ vipAt: -1 }) // Sort by vipAt in descending order (most recent first)
-            .limit(10);
+            .limit(30);
 
     } catch (error) {
         logger.error(`Error getting recent VIP : ${error.message}`);
