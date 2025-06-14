@@ -33,6 +33,7 @@ const transactionSchema = new mongoose.Schema({
             'Withdrawal',
             'Transfer via Phone',
             'Transfer via Email',
+            'Transfer via Username',
             'QR Payment',
             'Merchant QR Payment',
             'VIP Payment',

@@ -275,7 +275,7 @@ const withdrawWallet = asyncHandler(async (req, res) => {
 });
 
 const transferVerification = asyncHandler(async (req, res) => {
-    const { paymentCode, spendingCode, email, phone } = req.body;
+    const { paymentCode, spendingCode, userName, email, phone } = req.body;
 
     let recipientWallet;
     let merchant;
@@ -322,10 +322,10 @@ const transferVerification = asyncHandler(async (req, res) => {
             throw new Error('Could not transfer to your own account');
         }
     } else {
-        logger.info('Transfer via email/phone');
-        if (!email && !phone) {
-            res.status(400).json({ error: 'Email or phone is required for transfer' });
-            return;
+        logger.info('Transfer via userName/email/phone');
+        if (!userName && !email && !phone) {
+            res.status(400)
+            throw new Error('Recipient details required for transfer');
         }
 
         logger.info('Checking recipient is ownself');
@@ -340,6 +340,8 @@ const transferVerification = asyncHandler(async (req, res) => {
     let recipient;
     if (paymentCode || spendingCode) {
         recipient = await Member.findOne({ _id: recipientWallet.memberId }, { fullName: 1, email: 1, phone: 1 });
+    } else if (userName) {
+        recipient = await Member.findOne({ userName }, { fullName: 1, email: 1, phone: 1 });
     } else if (email) {
         recipient = await Member.findOne({ email }, { fullName: 1, email: 1, phone: 1 });
     } else if (phone) {
@@ -363,11 +365,11 @@ const transferVerification = asyncHandler(async (req, res) => {
 });
 
 const transferWallet = asyncHandler(async (req, res) => {
-    const { email, phone, amount } = req.body;
+    const { userName, email, phone, amount } = req.body;
 
-    if (!email && !phone) {
+    if (!userName && !email && !phone) {
         res.status(400);
-        throw new Error('Email or phone is required for transfer');
+        throw new Error('Recipient details required for transfer');
     }
 
     if (!amount) {
@@ -383,7 +385,11 @@ const transferWallet = asyncHandler(async (req, res) => {
     logger.info('Fetching recipient details');
     let description;
     let recipient;
-    if (phone) {
+    
+    if (userName) {
+        description = 'Transfer via Username';
+        recipient = await Member.findOne({ userName }, { fullName: 1, email: 1, phone: 1 });
+    } else if (phone) {
         description = 'Transfer via Phone';
         recipient = await Member.findOne({ phone }, { fullName: 1, email: 1, phone: 1 });
     } else if (email) {
