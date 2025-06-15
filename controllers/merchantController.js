@@ -60,7 +60,7 @@ const searchMerchant = asyncHandler(async (req, res) => {
         const merchants = await Merchant.find(filter, { _id: 0, memberId: 0, spendingCode: 0 })
             .skip(skip)
             .limit(Number(limit));
-        const total = await Member.countDocuments(merchants);
+        const total = await Merchant.countDocuments(filter);
 
         const formattedMerchants = await Promise.all(merchants.map(async merchant => {
             let resizedPicture = null;
