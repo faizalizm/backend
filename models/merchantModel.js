@@ -149,7 +149,12 @@ const merchantModel = new mongoose.Schema({
         type: String,
         required: [true, 'Please specify country'],
         trim: true
-    }
+    },
+    status: {
+        type: String,
+        enum: ['Deleted', 'Deactivated', 'Active'],
+        default: 'Active'
+    },
 }, {
     timestamps: true
 });

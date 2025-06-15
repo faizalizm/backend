@@ -51,7 +51,7 @@ const registerMember = asyncHandler(async (req, res) => {
         orConditions.push({ phone });
     }
     if (userName) {
-        orConditions.push({ userName: userName.toLowerCase() }); // Check for existing phone number
+        orConditions.push({ userName: userName.toLowerCase() }); // Check for existing username
     }
 
     const memberDetails = await Member.findOne({
