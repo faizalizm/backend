@@ -13,29 +13,12 @@ const { processSpendingReward } = require('../controllers/commisionController');
 const { buildMerchantQRPaymentMessage, sendMessage } = require('../services/firebaseCloudMessage');
 
 const searchMerchant = asyncHandler(async (req, res) => {
-    const { field, term, search, page = 1, limit = 5 } = req.query;
+    const { field, term, page = 1, limit = 5 } = req.query;
 
-    const filter = {}
-
-    // Optional field-based search
-    if (field && term) {
-        // if (!allowedFields.includes(field)) {
-        //     res.status(400);
-        //     throw new Error('Search criteria not valid');
-        // }
-        filter[field] = { $regex: term, $options: 'i' };
+    if (!field || !term) {
+        res.status(400);
+        throw new Error('Please add field and term');
     }
-    // General search across multiple fields
-    if (search) {
-        const searchRegex = { $regex: search, $options: 'i' };
-        filter.$or = [
-            { name: searchRegex },
-            { city: searchRegex },
-            { state: searchRegex },
-        ];
-    }
-
-    logger.info(`Setting filter: ${JSON.stringify(filter)}`);
 
     // Get the list of valid fields dynamically from the schema
     const validFields = Object.keys(Merchant.schema.paths).filter(
@@ -48,58 +31,43 @@ const searchMerchant = asyncHandler(async (req, res) => {
 
     // Check if the provided field is valid
     logger.info('Checking if field is allowed');
-    if (field && !validFields.includes(field)) {
+    if (!validFields.includes(field)) {
         res.status(400);
         throw new Error('Invalid search field');
     }
 
     try {
+        const searchQuery = {
+            [field]: { $regex: term, $options: 'i' }
+        };
+
+        // Perform the search
+        let merchants;
+        let hasNextPage;
+
         logger.info(`Fetching merchants - Field : ${field}, Term : ${term}, Page : ${page}, Limit : ${limit}`);
         // Fetch one extra to detect if there's a next page
-        const skip = (Number(page) - 1) * Number(limit);
-        const merchants = await Merchant.find(filter, { _id: 0, memberId: 0, spendingCode: 0 })
+        const skip = (parseInt(page) - 1) * parseInt(limit);
+        const result = await Merchant.find(searchQuery, { _id: 0, memberId: 0, spendingCode: 0 })
             .skip(skip)
-            .limit(Number(limit));
-        const total = await Merchant.countDocuments(filter);
+            .limit(parseInt(limit) + 1);
 
-        const formattedMerchants = await Promise.all(merchants.map(async merchant => {
-            let resizedPicture = null;
+        hasNextPage = result.length > limit;
+        merchants = hasNextPage ? result.slice(0, limit) : result;
+
             logger.info('Resizing merchant logo');
+        for (const merchant of merchants) {
                 if (merchant.logo) {
-                    resizedPicture = await resizeImage(merchant.logo, process.env.IMAGE_WIDTH_MERCHANT_LIST, process.env.IMAGE_QUALITY_MERCHANT_LIST);
+                merchant.logo = await resizeImage(merchant.logo, process.env.IMAGE_WIDTH_MERCHANT_LIST, process.env.IMAGE_QUALITY_MERCHANT_LIST);
+            }
                 }
-
-            return {
-                logo: resizedPicture,
-                name: merchant.name,
-                phone: merchant.phone,
-                description: merchant.description,
-                bizType: merchant.bizType,
-                operatingDays: merchant.operatingDays,
-                openingTime: merchant.openingTime,
-                closingTime: merchant.closingTime,
-                cashbackRate: merchant.cashbackRate,
-                addressLine1: merchant.addressLine1,
-                addressLine2: merchant.addressLine2,
-                addressLine3: merchant.addressLine3,
-                city: merchant.city,
-                state: merchant.state,
-                postCode: merchant.postCode,
-                country: merchant.country,
-                createdAt: merchant.createdAt,
-                updatedAt: merchant.updatedAt
-            };
-        }));
 
         if (merchants.length > 0) {
             res.status(200).json({
-                merchants: formattedMerchants,
-                pagination: {
-                    total,
-                    page: Number(page),
-                    limit: Number(limit),
-                    totalPages: Math.max(1, Math.ceil(total / limit))
-                }
+                page: parseInt(page),
+                pageSize: parseInt(limit),
+                hasNextPage,
+                merchants
             });
         } else {
             res.status(404);
