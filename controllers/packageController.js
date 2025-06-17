@@ -101,6 +101,10 @@ const purchasePackage = asyncHandler(async (req, res) => {
         throw new Error('Package Not Found');
     }
     
+    logger.info('Overriding package price to RM 250');
+    // Temporarily override package price
+    vipPackage.price = 30000;
+
     // Find the wallet linked to the member
     logger.info('Fetching wallet details');
     const wallet = await Wallet.findOne(
