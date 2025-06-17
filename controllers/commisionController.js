@@ -11,7 +11,11 @@ const processVIPCommision = async (member, amount) => {
     logger.info(`Processing VIP Referral Commision`);
 
     // Percentages for each level (pass-up concept)
-    const percentages = [20, 2, 2, 2, 1.2, 1.2, 0.8, 0.8, 0.4, 0.4, 0.2, 0.2, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1];
+    // const percentages = [20, 2, 2, 2, 1.2, 1.2, 0.8, 0.8, 0.4, 0.4, 0.2, 0.2, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1];
+    const percentages = [20, 7.5, 2.5, 1.25, 1.25, 0.5, 0.5, 0.5, 0.5, 0.5, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25];
+
+    logger.info('Commision to calculate from RM 400');
+    amount = 40000;
 
     let currentMember = member.referredBy;
     let level = 0;
