@@ -42,4 +42,20 @@ const referralSchema = new mongoose.Schema({
     _id: false
 });
 
-module.exports = referralSchema;
+// STATISTICS 
+const referralStatsSchema = new mongoose.Schema({
+    level: { // 1 to 20
+      type: Number,
+      required: true
+    },
+    vip: {
+      type: Number,
+      default: 0
+    },
+    user: {
+      type: Number,
+      default: 0
+    }
+  }, { _id: false });
+
+module.exports = {referralSchema, referralStatsSchema};

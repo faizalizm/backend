@@ -25,7 +25,7 @@ const {
     updateMember,
     inviteMember,
     getReferral,
-    getVIPStatistic
+    getVIPStatistic,
 } = require('../controllers/memberController');
 
 const router = express.Router();

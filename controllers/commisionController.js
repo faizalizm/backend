@@ -81,6 +81,22 @@ const processVIPCommision = async (member, amount) => {
                     // payoutLevel increases only when a VIP receives commission
                     logger.info('Bonus will be passed up');
                     payoutLevel++;
+
+                    // ✅ UPDATE STATS 
+                    const statsLevel = level + 1;
+                    const stat = uplineMember.referralStats.find(s => s.level === statsLevel);
+
+                    if (stat) {
+                        stat.vip += 1;
+                    } else {
+                        uplineMember.referralStats.push({
+                            level: statsLevel,
+                            vip: 1,
+                            user: 0
+                        });
+                    }
+
+                    await uplineMember.save();
                 }
             }
 

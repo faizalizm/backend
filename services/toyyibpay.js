@@ -6,7 +6,9 @@ const Transaction = require('../models/transactionModel');
 const Member = require('../models/memberModel');
 
 const {processVIPCommision} = require('../controllers/commisionController');
-const {sendShippingNotification} = require('../controllers/packageController');
+
+const { sendShippingNotification } = require('../utility/mailBuilder.js');
+
 
 const {TOYYIB_URL, TOYYIB_SECRET, TOYYIB_CALLBACK_URL, IP} = process.env;
 
