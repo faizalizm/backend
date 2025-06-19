@@ -43,7 +43,7 @@ const registerMember = asyncHandler(async (req, res) => {
     // Check if member is already registered
     logger.info('Fetching member details');
     const orConditions = [
-            { email: email.toLowerCase() }, // Check for existing email
+        { email: email.toLowerCase() }, // Check for existing email
 
     ];
 
@@ -119,41 +119,41 @@ const registerMember = asyncHandler(async (req, res) => {
     }
 
     try {
-    // Create Member
-    logger.info('Creating member');
-    const member = await Member.create({
+        // Create Member
+        logger.info('Creating member');
+        const member = await Member.create({
             userName: userName?.toLowerCase() || memberReferralCode,
-        fullName,
-        email: email.toLowerCase(),
-        password: hashedPassword,
-        phone,
-        referredBy: referrer ? referrer._id : null,
-        referralCode: memberReferralCode,
-        status: 'Active'
-    });
+            fullName,
+            email: email.toLowerCase(),
+            password: hashedPassword,
+            phone,
+            referredBy: referrer ? referrer._id : null,
+            referralCode: memberReferralCode,
+            status: 'Active'
+        });
 
-    // Generate Payment Code
-    logger.info('Generating payment code');
-    let isPaymentCodeUnique = false;
-    let paymentCode;
-    while (!isPaymentCodeUnique) {
-        paymentCode = "payment://" + generatePaymentCode(); // Generate a new payment code
+        // Generate Payment Code
+        logger.info('Generating payment code');
+        let isPaymentCodeUnique = false;
+        let paymentCode;
+        while (!isPaymentCodeUnique) {
+            paymentCode = "payment://" + generatePaymentCode(); // Generate a new payment code
 
-        // Check if the payment code already exists in the database
-        const existingPaymentCode = await Wallet.findOne({ paymentCode });
+            // Check if the payment code already exists in the database
+            const existingPaymentCode = await Wallet.findOne({ paymentCode });
 
-        if (!existingPaymentCode) {
-            isPaymentCodeUnique = true; // If no existing member found, the code is unique
+            if (!existingPaymentCode) {
+                isPaymentCodeUnique = true; // If no existing member found, the code is unique
+            }
         }
-    }
 
-    logger.info('Creating wallet');
-    const wallet = await Wallet.create({
-        memberId: member._id,
-        balance: 0,
-        currency: 'MYR',
-        paymentCode
-    });
+        logger.info('Creating wallet');
+        const wallet = await Wallet.create({
+            memberId: member._id,
+            balance: 0,
+            currency: 'MYR',
+            paymentCode
+        });
 
         if (member) {// If there is a referrer, add the new member to their referral list
             if (referrer) {
@@ -180,6 +180,17 @@ const registerMember = asyncHandler(async (req, res) => {
 
                 logger.info(`Added ${member.email} to ${referrer.email}'s Level 1 referrals`);
 
+                // Update referralStats for level 1
+                const level1Stats = referrer.referralStats.find(stat => stat.level === 1);
+                if (level1Stats) {
+                    level1Stats.user += 1;
+                } else {
+                    referrer.referralStats.push({
+                        level: 1,
+                        user: 1,
+                        vip: 0
+                    });
+                }
                 // Save the referrer with the new referral added
                 await referrer.save();
 
@@ -192,9 +203,7 @@ const registerMember = asyncHandler(async (req, res) => {
                 while (currentReferrer && currentLevel <= 20) {
                     const levelString = currentLevel.toString();
 
-                    let parentLevelEntry = currentReferrer.referrals.find(
-                        entry => entry.level === levelString
-                    );
+                    let parentLevelEntry = currentReferrer.referrals.find(entry => entry.level === levelString);
 
                     if (!parentLevelEntry) {
                         parentLevelEntry = {
@@ -215,7 +224,18 @@ const registerMember = asyncHandler(async (req, res) => {
                         parentLevelEntry.referrals.push(referrals);
                     }
 
+                    const statsEntry = currentReferrer.referralStats.find(stat => stat.level === currentLevel);
+                    if (statsEntry) {
+                        statsEntry.user += 1;
+                    } else {
+                        currentReferrer.referralStats.push({
+                            level: currentLevel,
+                            user: 1,
+                            vip: 0
+                        });
+                    }
                     await currentReferrer.save();
+
                     logger.info(`Added ${referrer.email} to ${currentReferrer.email}'s Level ${currentLevel} referrals`);
 
                     // Move up the referral chain, updating the referrer for the next level
@@ -235,8 +255,6 @@ const registerMember = asyncHandler(async (req, res) => {
                 phone: member.phone,
                 referralCode: member.referralCode,
                 referredBy: referrer ? referrer.referralCode : null
-                //                token: generateToken(member._id, process.env.ACCESS_TOKEN_EXPIRY),
-                //                refreshToken: generateToken(member._id, process.env.REFRESH_TOKEN_EXPIRY)
             });
         } else {
             res.status(400);
@@ -824,7 +842,7 @@ const getReferral = asyncHandler(async (req, res) => {
         });
         return res.status(200).json({ referrals: modifiedReferralList });
     } catch (error) {
-        console.error(error);
+        logger.error(`${error}`);
         return res.status(500).json({ message: "An error occurred while retrieving referrals" });
     }
 });
@@ -951,5 +969,5 @@ module.exports = {
     updateMember,
     inviteMember,
     getReferral,
-    getVIPStatistic
+    getVIPStatistic,
 };

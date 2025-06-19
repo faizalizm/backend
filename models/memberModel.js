@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 const moment = require('moment-timezone');
 
-const referralSchema = require('./referralSchema');
+const {referralSchema, referralStatsSchema} = require('./referralSchema');
 const bankDetailsSchema = require('./bankDetailsSchema');
 const shippingDetailsSchema = require('./shippingDetailsSchema');
 
@@ -71,6 +71,10 @@ const memberSchema = new mongoose.Schema({
     },
     referrals: {
         type: [referralSchema],
+        default: [] // Default to an empty array
+    },
+    referralStats: {
+        type: [referralStatsSchema],
         default: [] // Default to an empty array
     },
     type: {
