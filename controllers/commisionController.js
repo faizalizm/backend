@@ -35,7 +35,14 @@ const processVIPCommision = async (member, amount) => {
             visited.add(currentMember);
 
             // Find the upline member
-            const uplineMember = await Member.findOne({ _id: currentMember }).select('_id fullName referralCode referredBy type');
+            const uplineMember = await Member.findOne({ _id: currentMember }, {
+                _id: 1,
+                fullName: 1,
+                referralCode: 1,
+                referredBy: 1,
+                type: 1,
+                referralStats: 1
+            });
             if (!uplineMember)
                 break;
 
