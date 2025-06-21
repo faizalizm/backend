@@ -614,10 +614,6 @@ const updateMember = asyncHandler(async (req, res) => {
         };
     }
 
-    if (updates.withdrawalDetails?.mipayAccountNumber) {
-        withdrawalDetails.mipayAccountNumber = updates.withdrawalDetails.mipayAccountNumber;
-    }
-
     if (Object.keys(withdrawalDetails).length) {
         updates.withdrawalDetails = withdrawalDetails;
     }

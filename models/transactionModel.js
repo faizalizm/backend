@@ -22,27 +22,26 @@ const transactionSchema = new mongoose.Schema({
         enum: [
             'Credit', // Added
             'Debit', // Deducted
-            'N/A' // For FPX
         ]
     },
     description: {
         type: String,
         required: [true, 'Please specify description'],
-        enum: [
-            'Top Up',
-            'Withdrawal',
-            'Transfer via Phone',
-            'Transfer via Email',
-            'Transfer via Username',
-            'QR Payment',
-            'Merchant QR Payment',
-            'VIP Payment',
-            'VIP Registration Commission',
-            'Spending Rewards',
-            'Spending Rewards Commision',
-            'Points Redemption',
-            'Cashback'
-        ]
+        //     enum: [
+        //         'Top Up',
+        //         'Withdrawal',
+        //         'Transfer via Phone',
+        //         'Transfer via Email',
+        //         'Transfer via Username',
+        //         'QR Payment',
+        //         'Merchant QR Payment',
+        //         'VIP Payment',
+        //         'VIP Registration Commission',
+        //         'Spending Rewards',
+        //         'Spending Rewards Commision',
+        //         'Points Redemption',
+        //         'Cashback'
+        //     ]
     },
     status: {
         type: String,
@@ -88,9 +87,6 @@ const transactionSchema = new mongoose.Schema({
         type: {
             type: String,
             enum: ['MiPay', 'Bank']
-        },
-        mipayAccountNumber: {
-            type: String
         },
         bankDetails: {
             type: bankDetailsSchema

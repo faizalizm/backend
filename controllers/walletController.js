@@ -96,10 +96,7 @@ const topupWallet = asyncHandler(async (req, res) => {
         throw new Error(`Topup amount must be at least ${formatAmount(minTopupAmount)}`);
     }
 
-    let paymentChannelToyyib;
-    if (paymentChannel === 'FPX') {
-        paymentChannelToyyib = '0';
-    } else {
+    if (paymentChannel !== 'FPX') {
         res.status(404);
         throw new Error('Payment channel not supported');
     }
@@ -169,7 +166,7 @@ const topupWallet = asyncHandler(async (req, res) => {
 });
 
 const withdrawWallet = asyncHandler(async (req, res) => {
-    const { withdrawChannel, amount, ...otherData } = req.body;
+    const { withdrawChannel, amount } = req.body;
 
     const minWithdrawal = 1000;
 
@@ -226,13 +223,6 @@ const withdrawWallet = asyncHandler(async (req, res) => {
             bankAccountNumber
         };
 
-    } else if (withdrawChannel === 'MiPay') {
-        const { mipayAccountNumber } = req.body;
-        if (!mipayAccountNumber) {
-            return res.status(400).json({ message: 'Please provide MiPay account number' });
-        }
-
-        transactionData.withdrawalDetails.mipayAccountNumber = mipayAccountNumber;
     } else {
         res.status(404);
         throw new Error('Withdraw channel not supported');
@@ -385,7 +375,7 @@ const transferWallet = asyncHandler(async (req, res) => {
     logger.info('Fetching recipient details');
     let description;
     let recipient;
-    
+
     if (userName) {
         description = 'Transfer via Username';
         recipient = await Member.findOne({ userName }, { fullName: 1, email: 1, phone: 1 });
@@ -603,14 +593,7 @@ const sendWithdrawalNotification = async (member, transaction) => {
             .replace('${bankName}', transaction.withdrawalDetails.bankDetails.bankName || 'N/A')
             .replace('${bankAccountName}', transaction.withdrawalDetails.bankDetails.bankAccountName || 'N/A')
             .replace('${bankAccountNumber}', transaction.withdrawalDetails.bankDetails.bankAccountNumber || 'N/A')
-            .replace('${mipayAccountNumber}', '');
-    } else if (transaction.withdrawalDetails.type === "MiPay") {
-        htmlContent = fs.readFileSync(path.join(__dirname, '..', 'email', 'walletWithdrawalCard.html'), 'utf-8');
-        htmlContent = htmlContent
-            .replace('${mipayAccountNumber}', transaction.withdrawalDetails.mipayAccountNumber || 'N/A')
-            .replace('${bankName}', '')
-            .replace('${bankAccountName}', '')
-            .replace('${bankAccountNumber}', '');
+            ;
     }
 
     htmlContent = htmlContent

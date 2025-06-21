@@ -37,9 +37,20 @@ const lifestyleSchema = new mongoose.Schema({
         }
     },
     requirement: {
-        type: String,
-        required: [true, 'Please specify requirement'],
-        trim: true
+        type: [
+            {
+                level: {
+                    type: Number,
+                    required: true
+                },
+                vipRequired: {
+                    type: Number,
+                    required: true,
+                    min: 1
+                }
+            }
+        ],
+        required: [true, 'Please specify at least one level requirement'],
     },
     priority: {
         type: Number,
