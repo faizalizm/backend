@@ -120,14 +120,8 @@ const getMerchant = asyncHandler(async (req, res) => {
         throw new Error('Merchant not found');
     }
 
-    // Ensure cashbackRate is shown with two decimal places
-    const merchantData = merchant.toObject();
-    if (merchantData.cashbackRate !== undefined && merchantData.cashbackRate !== null) {
-        merchantData.cashbackRate = merchantData.cashbackRate.toFixed(2);
-    }
-
     logger.info(`Merchant - ${merchant.name}`);
-    res.status(200).json(merchantData);
+    res.status(200).json(merchant);
 });
 
 const registerMerchant = asyncHandler(async (req, res) => {
@@ -334,13 +328,7 @@ const genQRCode = asyncHandler(async (req, res) => {
     }
     logger.info(`Merchant - ${merchant.name}`);
 
-    // Ensure cashbackRate is shown with two decimal places
-    const merchantData = merchant.toObject();
-    if (merchantData.cashbackRate !== undefined && merchantData.cashbackRate !== null) {
-        merchantData.cashbackRate = merchantData.cashbackRate.toFixed(2);
-    }
-
-    res.status(200).json(merchantData);
+    res.status(200).json(merchant);
 });
 
 // Generate Payment Code
