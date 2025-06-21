@@ -334,11 +334,13 @@ const genQRCode = asyncHandler(async (req, res) => {
     }
     logger.info(`Merchant - ${merchant.name}`);
 
-    try {
-        res.status(200).json(merchant);
-    } catch (error) {
-        res.status(500).json({ message: 'Error generating QR code', error: error.message });
+    // Ensure cashbackRate is shown with two decimal places
+    const merchantData = merchant.toObject();
+    if (merchantData.cashbackRate !== undefined && merchantData.cashbackRate !== null) {
+        merchantData.cashbackRate = merchantData.cashbackRate.toFixed(2);
     }
+
+    res.status(200).json(merchantData);
 });
 
 // Generate Payment Code
