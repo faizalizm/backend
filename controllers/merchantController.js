@@ -65,9 +65,9 @@ const searchMerchant = asyncHandler(async (req, res) => {
         const formattedMerchants = await Promise.all(merchants.map(async merchant => {
             let resizedPicture = null;
             logger.info('Resizing merchant logo');
-                if (merchant.logo) {
-                    resizedPicture = await resizeImage(merchant.logo, process.env.IMAGE_WIDTH_MERCHANT_LIST, process.env.IMAGE_QUALITY_MERCHANT_LIST);
-                }
+            if (merchant.logo) {
+                resizedPicture = await resizeImage(merchant.logo, process.env.IMAGE_WIDTH_MERCHANT_LIST, process.env.IMAGE_QUALITY_MERCHANT_LIST);
+            }
 
             return {
                 logo: resizedPicture,
@@ -115,13 +115,19 @@ const getMerchant = asyncHandler(async (req, res) => {
     logger.info('Fetching merchant details');
     const merchant = await Merchant.findOne({ memberId: req.member._id }, { _id: 0, memberId: 0, spendingCode: 0, __v: 0 });
 
-    if (merchant) {
-        logger.info(`Merchant - ${merchant.name}`);
-        res.status(200).json(merchant);
-    } else {
+    if (!merchant) {
         res.status(404);
         throw new Error('Merchant not found');
     }
+
+    // Ensure cashbackRate is shown with two decimal places
+    const merchantData = merchant.toObject();
+    if (merchantData.cashbackRate !== undefined && merchantData.cashbackRate !== null) {
+        merchantData.cashbackRate = merchantData.cashbackRate.toFixed(2);
+    }
+
+    logger.info(`Merchant - ${merchant.name}`);
+    res.status(200).json(merchantData);
 });
 
 const registerMerchant = asyncHandler(async (req, res) => {

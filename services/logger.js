@@ -1,5 +1,6 @@
 const colors = require('colors');
 const winston = require('winston');
+const util = require('util');
 require('winston-daily-rotate-file');
 
 const trimBase64 = (result, maxLength = 50, visited = new Set()) => {
@@ -30,14 +31,16 @@ const trimBase64 = (result, maxLength = 50, visited = new Set()) => {
 };
 
 const customFormat = winston.format.printf(({ timestamp, level, message, requestId, ...meta }) => {
-    const metaString = Object.keys(meta).length ? JSON.stringify(meta, null, 2) : '';
+    // const metaString = Object.keys(meta).length ? JSON.stringify(meta, null, 2) : '';
+    const metaString = Object.keys(meta).length ? util.inspect(meta, { depth: 5, colors: false }) : '';
+
 
     return `${colors.yellow(`${timestamp}`)} ` + // Timestamp in yellow
-            `| ` +
-            `${colors.cyan(`EID: ${requestId || 'SYSTEM'}`)} ` + // Request ID in cyan
-            `| ` +
-            `${colors.bold(`[${level.toUpperCase()}]`)} ` + // Log level in bold
-            `${colors.green(message)} ${metaString}`;              // Message in green
+        `| ` +
+        `${colors.cyan(`EID: ${requestId || 'SYSTEM'}`)} ` + // Request ID in cyan
+        `| ` +
+        `${colors.bold(`[${level.toUpperCase()}]`)} ` + // Log level in bold
+        `${colors.green(message)} ${metaString}`;              // Message in green
 });
 
 // Add custom level colors
@@ -50,29 +53,31 @@ winston.addColors({
 
 // Daily rotating file transport
 const fileRotateTransport = new winston.transports.DailyRotateFile({
-    filename: 'logs/application-%DATE%.log',
+    filename: 'logs/application.log',
     datePattern: 'YYYY-MM-DD',
     maxFiles: process.env.LOG_RETENTION_DAYS || '20d',
-    zippedArchive: true
+    zippedArchive: true,
+    createSymlink: true,
+    symlinkName: 'backend.log',
 });
 
 // Create Winston logger
 const logger = winston.createLogger({
     level: process.env.LOG_LEVEL || 'info',
     format: winston.format.combine(
-            winston.format.timestamp({format: process.env.TIMESTAMP_FORMAT_LOG}),
-            customFormat
-            ),
+        winston.format.timestamp({ format: process.env.TIMESTAMP_FORMAT_LOG }),
+        customFormat
+    ),
     transports: [
-//        new winston.transports.Console({
-//            format: winston.format.combine(
-//                    winston.format.colorize(),
-//                    winston.format.timestamp({format: 'YYYY-MM-DD HH:mm:ss'}),
-//                    customFormat
-//                    )
-//        }),
+        //        new winston.transports.Console({
+        //            format: winston.format.combine(
+        //                    winston.format.colorize(),
+        //                    winston.format.timestamp({format: 'YYYY-MM-DD HH:mm:ss'}),
+        //                    customFormat
+        //                    )
+        //        }),
         fileRotateTransport
     ],
 });
 
-module.exports = {logger, trimBase64};
+module.exports = { logger, trimBase64 };
