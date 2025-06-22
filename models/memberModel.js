@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 const moment = require('moment-timezone');
 
-const {referralSchema, referralStatsSchema} = require('./referralSchema');
+const { referralSchema, referralStatsSchema } = require('./referralSchema');
 const bankDetailsSchema = require('./bankDetailsSchema');
 const shippingDetailsSchema = require('./shippingDetailsSchema');
 
@@ -87,9 +87,6 @@ const memberSchema = new mongoose.Schema({
     },
     // Bank Details
     withdrawalDetails: {
-        mipayAccountNumber: {
-            type: String
-        },
         bankDetails: {
             type: bankDetailsSchema
         }

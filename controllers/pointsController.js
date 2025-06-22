@@ -1,11 +1,14 @@
 const asyncHandler = require('express-async-handler');
 
+const { startManagedSession } = require('../services/mongodb');
 const { logger } = require('../services/logger');
 
-const Member = require('../models/memberModel');
+const PointsReward = require('../models/pointsRewardModel');
 const Wallet = require('../models/walletModel');
 const Transaction = require('../models/transactionModel');
-const PointsReward = require('../models/pointsRewardModel');
+const Logistic = require('../models/logisticModel');
+
+const { sendShipmentNotification } = require('../utility/mailBuilder.js');
 
 const getPointsReward = asyncHandler(async (req, res) => {
 
@@ -29,7 +32,6 @@ const getPointsReward = asyncHandler(async (req, res) => {
             }
         ]
     }, {
-        _id: 0,
         __v: 0
     }).sort({ priority: 1 });
 
@@ -170,4 +172,107 @@ const redeemPoints = asyncHandler(async (req, res) => {
     }
 });
 
-module.exports = { getPointsReward, getPoints, redeemPoints };
+const claimReward = asyncHandler(async (req, res) => {
+    const { pointsRewardId } = req.body;
+
+    if (!pointsRewardId) {
+        res.status(400);
+        throw new Error('Points Reward ID is required');
+    }
+
+    const session = await startManagedSession();
+    try {
+        logger.info('Checking member shipping details');
+        if (!req.member.shippingDetails) {
+            res.status(400);
+            throw new Error('Please fill up shipping details');
+        }
+
+        logger.info('Fetching points reward details');
+        const pointRewards = await PointsReward.findById(pointsRewardId, { __v: 0 }, { session });
+
+        if (!pointRewards) {
+            logger.warn('Points reward not found');
+            res.status(404);
+            throw new Error('Points reward not found');
+        }
+
+        if (pointRewards.status !== 'Active') {
+            logger.warn('Points reward is not active');
+            res.status(404);
+            throw new Error('Points reward not active');
+        }
+
+
+        // Check points reward availability
+        logger.info('Validating points reward availability');
+        const now = new Date();
+        if (pointRewards.startDate && now < pointRewards.startDate) {
+            res.status(400);
+            throw new Error('Points reward is not available yet');
+        }
+        if (pointRewards.endDate && now > pointRewards.endDate) {
+            res.status(400);
+            throw new Error('Points reward is no longer available');
+        }
+
+        // Find the wallet linked to the member
+        logger.info('Fetching wallet details');
+        const wallet = await Wallet.findOne({ memberId: req.member._id }, { _id: 1, balance: 1, points: 1 }, { session });
+        if (!wallet) {
+            res.status(404);
+            throw new Error('Wallet Not Found');
+        }
+
+        logger.info(`Points available : ${wallet.points}, Claim Requirements : ${pointRewards.pointsRequirement}`);
+
+        // Check if wallet balance is sufficient for the withdrawal
+        logger.info('Checking points balance');
+        if (wallet.points < pointRewards.pointsRequirement) {
+            res.status(402); // HTTP 402: Payment Required
+            throw new Error('Insufficient points to convert');
+        }
+
+        logger.info('Creating debit point transaction');
+        const pointsTransaction = await Transaction.create([{
+            walletId: wallet._id,
+            systemType: 'HubPoints',
+            type: 'Debit',
+            description: `Claim Reward: ${pointRewards.title}`,
+            status: 'Success',
+            amount: pointRewards.pointsRequirement
+        }], { session });
+
+        logger.info('Creating logistic tracking');
+        const logisticTracking = await Logistic.create([{
+            transactionId: pointsTransaction._id,
+            systemType: 'Points Reward',
+            description: `${pointRewards.title}`,
+            pointsRewardId: pointRewards._id,
+            status: 'Preparing',
+            shippingDetails: req.member.shippingDetails,
+        }], { session });
+        logger.info(`Logistic tracking created: ${logisticTracking._id}`);
+
+        logger.info('Deducting points balance');
+        wallet.points -= Number(pointRewards.pointsRequirement);
+        await wallet.save({ session });
+
+        // Send shipment notification
+        logger.info('Sending shipping notification via email');
+        sendShipmentNotification(req.member, pointsTransaction);
+
+        await session.commitTransaction();
+        res.status(200).json({
+            message: 'Points reward successfully claimed. You will receive updates on the shipment soon!',
+        });
+    } catch (error) {
+        await session.abortTransaction();
+        throw error;
+
+    } finally {
+        session.endSession();
+    }
+});
+
+module.exports = { getPointsReward, getPoints, redeemPoints, claimReward };

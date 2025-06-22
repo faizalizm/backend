@@ -24,13 +24,36 @@ const walletSchema = new mongoose.Schema({
         default: null,
         unique: true
     },
-    
+
     // Points
     points: {
         type: Number, // Using Number for calculations
         default: 0, // Default points is 0
         min: [0, 'Points Cannot Be Negative'] // Prevent negative points
-    }
+    },
+
+    // Security
+    pin: {
+        type: String,
+        required: false,
+        default: null
+    },
+    pinTries: {
+        type: Number,
+        default: 0
+    },
+    lastPinChangedAt: {
+        type: Date,
+        default: null
+    },
+    minPinPrompt: {
+        type: Number,
+        default: null
+    },
+    isWalletLocked: {
+        type: Boolean,
+        default: false
+    },
 }, {
     timestamps: true
 });

@@ -9,12 +9,14 @@ const { getCategoryToyyib, createBillToyyib, getBillTransactionsToyyib } = requi
 const { buildTransferMessage, buildQRPaymentMessage, sendMessage } = require('../services/firebaseCloudMessage');
 
 const { formatAmount } = require('../utility/formatter');
+const { hashPIN, verifyPIN, handleIncorrectPIN, verifyWallet } = require('../utility/walletUtility');
 
 const Member = require('../models/memberModel');
 const Wallet = require('../models/walletModel');
 const Package = require('../models/packageModel');
 const Transaction = require('../models/transactionModel');
 const Merchant = require('../models/merchantModel');
+const Configuration = require('../models/configurationModel');
 
 const getWallet = asyncHandler(async (req, res) => {
     // Find the wallet linked to the member
@@ -72,6 +74,7 @@ const getWallet = asyncHandler(async (req, res) => {
     }).sort({ createdAt: -1 });
 
     res.status(200).json({
+        isPinSet: !!wallet.pin,
         balance: wallet.balance,
         points: wallet.points,
         currency: wallet.currency,
@@ -96,10 +99,7 @@ const topupWallet = asyncHandler(async (req, res) => {
         throw new Error(`Topup amount must be at least ${formatAmount(minTopupAmount)}`);
     }
 
-    let paymentChannelToyyib;
-    if (paymentChannel === 'FPX') {
-        paymentChannelToyyib = '0';
-    } else {
+    if (paymentChannel !== 'FPX') {
         res.status(404);
         throw new Error('Payment channel not supported');
     }
@@ -169,7 +169,7 @@ const topupWallet = asyncHandler(async (req, res) => {
 });
 
 const withdrawWallet = asyncHandler(async (req, res) => {
-    const { withdrawChannel, amount, ...otherData } = req.body;
+    const { withdrawChannel, amount } = req.body;
 
     const minWithdrawal = 1000;
 
@@ -226,13 +226,6 @@ const withdrawWallet = asyncHandler(async (req, res) => {
             bankAccountNumber
         };
 
-    } else if (withdrawChannel === 'MiPay') {
-        const { mipayAccountNumber } = req.body;
-        if (!mipayAccountNumber) {
-            return res.status(400).json({ message: 'Please provide MiPay account number' });
-        }
-
-        transactionData.withdrawalDetails.mipayAccountNumber = mipayAccountNumber;
     } else {
         res.status(404);
         throw new Error('Withdraw channel not supported');
@@ -385,7 +378,7 @@ const transferWallet = asyncHandler(async (req, res) => {
     logger.info('Fetching recipient details');
     let description;
     let recipient;
-    
+
     if (userName) {
         description = 'Transfer via Username';
         recipient = await Member.findOne({ userName }, { fullName: 1, email: 1, phone: 1 });
@@ -574,6 +567,78 @@ const qrPayment = asyncHandler(async (req, res) => {
     }
 });
 
+const updatePin = asyncHandler(async (req, res) => {
+    const { oldPin, newPin, minPinPrompt } = req.body;
+
+    logger.info('Fetching wallet details');
+    const wallet = await Wallet.findOne({ memberId: req.member._id }, { spendingCode: 0 });
+    if (!wallet) {
+        res.status(404);
+        throw new Error('Wallet not found');
+    }
+
+    logger.info('Fetching configuration');
+    const configurations = await Configuration.getSingleton();
+    if (!configurations) {
+        res.status(500);
+        throw new Error('Configuration not found');
+    }
+
+    // PIN lockout check
+    if (!verifyWallet(wallet, configurations)) {
+        res.status(403);
+        throw new Error('PIN has been locked due to multiple failed attempts. Please contact support.');
+    }
+
+    if (!wallet.pin && minPinPrompt !== undefined) {
+        res.status(400);
+        throw new Error('You must setup a PIN before updating the minimum PIN prompt');
+    }
+
+    if (wallet.pin) {
+        // Only validate old pin if previously set-up
+        if (!oldPin || !/^\d{6}$/.test(oldPin)) {
+            res.status(400);
+            throw new Error('Old PIN must be 6 digit number');
+        }
+
+        const isPINValid = await verifyPIN(oldPin, wallet.pin);
+        if (!isPINValid) {
+            // Security violation
+            res.status(403);
+            return await handleIncorrectPIN({
+                wallet,
+                configurations,
+                member: req.member
+            });
+        }
+    }
+
+    // Only allow update minimum PIN prompt if old PIN is valid
+    if (minPinPrompt !== undefined) {
+        if (!/^\d+$/.test(minPinPrompt)) {
+            res.status(400);
+            throw new Error('Minimum amount for PIN is not valid');
+        }
+        if (minPinPrompt < configurations.payments.minPinPrompt || minPinPrompt > configurations.payments.maxPinPrompt) {
+            res.status(400);
+            throw new Error('Minimum amount for PIN must be between RM 0 to RM 1000');
+        }
+
+        wallet.minPinPrompt = minPinPrompt;
+    }
+
+    wallet.pin = await hashPIN(newPin);
+    wallet.lastPinChangedAt = new Date();
+    wallet.pinTries = 0;
+    await wallet.save();
+    logger.info('PIN updated successfully');
+
+    res.status(200).json({
+        message: 'PIN updated successfully',
+    });
+});
+
 const genQRCode = asyncHandler(async (req, res) => {
     // Find the wallet linked to the member
     logger.info('Fetching wallet details');
@@ -603,14 +668,7 @@ const sendWithdrawalNotification = async (member, transaction) => {
             .replace('${bankName}', transaction.withdrawalDetails.bankDetails.bankName || 'N/A')
             .replace('${bankAccountName}', transaction.withdrawalDetails.bankDetails.bankAccountName || 'N/A')
             .replace('${bankAccountNumber}', transaction.withdrawalDetails.bankDetails.bankAccountNumber || 'N/A')
-            .replace('${mipayAccountNumber}', '');
-    } else if (transaction.withdrawalDetails.type === "MiPay") {
-        htmlContent = fs.readFileSync(path.join(__dirname, '..', 'email', 'walletWithdrawalCard.html'), 'utf-8');
-        htmlContent = htmlContent
-            .replace('${mipayAccountNumber}', transaction.withdrawalDetails.mipayAccountNumber || 'N/A')
-            .replace('${bankName}', '')
-            .replace('${bankAccountName}', '')
-            .replace('${bankAccountNumber}', '');
+            ;
     }
 
     htmlContent = htmlContent
@@ -624,4 +682,13 @@ const sendWithdrawalNotification = async (member, transaction) => {
     await sendMail(mailId, subject, htmlContent);
 };
 
-module.exports = { getWallet, topupWallet, withdrawWallet, transferVerification, transferWallet, qrPayment, genQRCode };
+module.exports = {
+    getWallet,
+    topupWallet,
+    withdrawWallet,
+    transferVerification,
+    transferWallet,
+    qrPayment,
+    genQRCode,
+    updatePin
+};

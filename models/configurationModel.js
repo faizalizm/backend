@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const moment = require('moment-timezone');
+const { logger } = require('../services/logger');
 
 const configurationSchema = new mongoose.Schema({
     appVersion: {
@@ -35,6 +36,18 @@ const configurationSchema = new mongoose.Schema({
             type: Number,
             default: 250
         },
+        pinTries: { // Tries untuk lockout
+            type: Number,
+            default: 5
+        },
+        minPinPrompt: {
+            type: Number,
+            default: 0
+        },
+        maxPinPrompt: {
+            type: Number,
+            default: 100000
+        },
     },
     transaction: {
         dailyTopupLimit: {
@@ -42,6 +55,10 @@ const configurationSchema = new mongoose.Schema({
             default: 3000
         },
         dailyWithdrawLimit: {
+            type: Number,
+            default: 3000
+        },
+        dailyTransferLimit: {
             type: Number,
             default: 3000
         },
@@ -53,6 +70,17 @@ const configurationSchema = new mongoose.Schema({
     customerServiceNo: {
         type: String
     },
+    bankTransfer: {
+        recipientBank: {
+            type: String,
+        },
+        recipientName: {
+            default: String
+        },
+        recipientAccountNumber: {
+            type: String,
+        },
+    },
     links: {
         terms: {
             type: String
@@ -61,6 +89,9 @@ const configurationSchema = new mongoose.Schema({
             type: String
         },
         faq: {
+            type: String
+        },
+        ebook: {
             type: String
         },
         deletion: {
@@ -82,5 +113,23 @@ configurationSchema.set('toJSON', {
         return ret;
     }
 });
+
+// Caching
+let configCache = null;
+let lastFetched = 0;
+const TTL = 60_000; // 1 minute
+
+// ✅ Static method: get full config with caching
+configurationSchema.statics.getSingleton = async function () {
+    const now = Date.now();
+    if (configCache && now - lastFetched < TTL) {
+        logger.info('Returning cached configuration');
+        return configCache;
+    }
+    logger.info('Fetching configuration from database');
+    configCache = await this.findOne({}).lean();
+    lastFetched = now;
+    return configCache;
+};
 
 module.exports = mongoose.model('Configuration', configurationSchema);

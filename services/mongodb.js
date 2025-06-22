@@ -1,7 +1,7 @@
 const colors = require('colors');
 const mongoose = require('mongoose');
 
-const {logger, trimBase64} = require('./logger');
+const { logger, trimBase64 } = require('./logger');
 
 const connectDB = async () => {
     try {
@@ -18,8 +18,8 @@ const connectDB = async () => {
 
         mongoose.Query.prototype.exec = async function (...args) {
             const queryStartExecuteTime = Date.now();
-//                console.log('Executing Query:', this.getQuery());
-//                console.log('Query Options:', this.options);
+            //                console.log('Executing Query:', this.getQuery());
+            //                console.log('Query Options:', this.options);
 
             // Execute the query and get the result
             const result = await this._exec(...args);
@@ -61,17 +61,17 @@ const connectDB = async () => {
             logger.info(colors.gray(`Mongoose: ${this.mongooseCollection.name}.${this.op} | Query Duration ${queryExecutionTime} ms | Queried [${affectedCount}]`));
 
             // Log the result after the query completes * Includes full query result
-//            try {
-//                // Deep clone using JSON stringify/parse for safety
-//                const clonedResult = JSON.parse(JSON.stringify(result));
-//                const sanitizedResult = trimBase64(clonedResult);
-//
-//                logger.info(`${colors.cyan('Mongoose:')} ${queryExecutionTime}s - Query Result: ${JSON.stringify(sanitizedResult, null, 2)}`);
-//            } catch (error) {
-//                logger.error(`${colors.red('Error:')} Could not clone query result - ${error.message}`);
-//            }
+            //            try {
+            //                // Deep clone using JSON stringify/parse for safety
+            //                const clonedResult = JSON.parse(JSON.stringify(result));
+            //                const sanitizedResult = trimBase64(clonedResult);
+            //
+            //                logger.info(`${colors.cyan('Mongoose:')} ${queryExecutionTime}s - Query Result: ${JSON.stringify(sanitizedResult, null, 2)}`);
+            //            } catch (error) {
+            //                logger.error(`${colors.red('Error:')} Could not clone query result - ${error.message}`);
+            //            }
 
-//            logger.info(`${colors.cyan('Mongoose:')} Query Result: ${JSON.stringify(result, null, 2)}`);
+            //            logger.info(`${colors.cyan('Mongoose:')} Query Result: ${JSON.stringify(result, null, 2)}`);
 
 
             return result; // Return the result to continue the execution flow
@@ -92,5 +92,16 @@ const closeDB = async () => {
     }
 };
 
+const startManagedSession = async (options = {}) => {
+    const session = await mongoose.startSession();
 
-module.exports = {connectDB, closeDB};
+    session.startTransaction({
+        readConcern: { level: 'local' },
+        writeConcern: { w: 'majority' },
+        ...options
+    });
+
+    return session;
+};
+
+module.exports = { connectDB, closeDB, startManagedSession };
