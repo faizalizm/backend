@@ -839,7 +839,6 @@ const getReferral = asyncHandler(async (req, res) => {
     }
 });
 
-
 const getVIPStatistic = asyncHandler(async (req, res) => {
     try {
         logger.info('Fetching total live VIP');
