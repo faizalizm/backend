@@ -935,7 +935,7 @@ const sendInvitationEmail = async (recipientEmail, referralCode, playStoreInvita
     htmlContent = htmlContent.replace('${playStoreInvitation}', playStoreInvitation);
 
     let mailId = 'invitation';
-    let subject = 'Explore Rewards Hub!';
+    let subject = 'Explore Rewards Hub';
     await sendMail(mailId, subject, htmlContent, recipientEmail);
 };
 

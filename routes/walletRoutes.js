@@ -1,5 +1,5 @@
 const express = require('express');
-const {protect} = require('../middleware/authMiddleware');
+const { protect } = require('../middleware/authMiddleware');
 
 const {
     getWallet,
@@ -8,7 +8,8 @@ const {
     transferVerification,
     transferWallet,
     qrPayment,
-    genQRCode
+    genQRCode,
+    updatePin
 } = require('../controllers/walletController');
 
 const router = express.Router();
@@ -20,5 +21,6 @@ router.post('/transfer', protect, transferWallet);
 router.post('/transfer/verification', protect, transferVerification);
 router.post('/qrPayment', protect, qrPayment);
 router.get('/qrcode', protect, genQRCode);
+router.post('/pin', protect, updatePin);
 
 module.exports = router;
