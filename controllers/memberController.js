@@ -781,7 +781,6 @@ const getReferral = asyncHandler(async (req, res) => {
     }
 
     try {
-        // Find the member based on their ID
         logger.info('Fetching member details');
         const member = await Member.findById(req.member._id);
 
@@ -789,56 +788,53 @@ const getReferral = asyncHandler(async (req, res) => {
             return res.status(404).json({ message: "Member not found" });
         }
 
-        const referralsForLevel = member.referrals.find(referral => referral.level === level);
-
-        if (!referralsForLevel) {
+        const levelData = member.referrals.find(ref => ref.level === level);
+        if (!levelData || levelData.referrals.length === 0) {
             return res.status(404).json({ message: `No referrals found for level ${level}` });
         }
 
-        const populatedReferrals = await Promise.all(referralsForLevel.referrals.map(async (referral) => {
+        const populatedReferrals = await Promise.all(levelData.referrals.map(async referral => {
+            const referrerDoc = await Member.findById(referral.referrerId).select('userName fullName type vipAt createdAt');
+            const referredDoc = await Member.findById(referral.memberId).select('userName fullName type vipAt createdAt');
 
-            logger.info('Fetching referrer details');
-            const populatedReferrer = await Member.findById(referral.referrerId).select('fullName type vipAt createdAt -_id');
-            logger.info('Fetching member details');
-            const populatedMember = await Member.findById(referral.memberId).select('fullName type vipAt createdAt -_id');
+            const referrer = referrerDoc?.toJSON();
+            const referred = referredDoc?.toJSON();
 
             return {
-                referrer: populatedReferrer,
-                member: populatedMember,
-                createdAt: referral.createdAt
+                referrer,
+                referred,
+                referredAt: referral.createdAt
             };
         }));
 
-        // Group referrals by referrer full name and type
-        const groupedReferrals = populatedReferrals.reduce((acc, { referrer, member }) => {
-            const referrerKey = `${referrer.fullName}-${referrer.type}`;  // Unique key combining full name and type
-
-            // If the referrer already exists in the map, add the member to the list
-            if (acc[referrerKey]) {
-                acc[referrerKey].push(member);
-            } else {
-                // If not, create a new list for this referrer
-                acc[referrerKey] = [member];
+        // Group by referrer._id
+        const grouped = {};
+        for (const { referrer, referred } of populatedReferrals) {
+            const refId = referrer._id.toString();
+            if (!grouped[refId]) {
+                grouped[refId] = {
+                    referrer: {
+                        fullName: referrer.userName || referrer.fullName,
+                        type: referrer.type
+                    },
+                    members: []
+                };
             }
 
-            return acc;
-        }, {});
+            grouped[refId].members.push({
+                fullName: referred.userName || referred.fullName,
+                type: referred.type,
+                createdAt: referred.createdAt,
+                vipAt: referred.vipAt
+            });
+        }
 
-        // Convert the grouped referrals into the desired structure
-        const modifiedReferralList = Object.keys(groupedReferrals).map(referrerKey => {
-            const [fullName, type] = referrerKey.split('-');  // Split the referrerKey back to fullName and type
-            return {
-                referrer: {
-                    fullName,
-                    type // Add the actual type from the referrer object
-                    // You can add other referrer fields if necessary, like profile picture or VIP status
-                },
-                members: groupedReferrals[referrerKey]
-            };
+        return res.status(200).json({
+            referrals: Object.values(grouped)
         });
-        return res.status(200).json({ referrals: modifiedReferralList });
+
     } catch (error) {
-        logger.error(`${error}`);
+        logger.error(`Referral fetch failed: ${error}`);
         return res.status(500).json({ message: "An error occurred while retrieving referrals" });
     }
 });
