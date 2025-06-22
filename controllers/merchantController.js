@@ -237,12 +237,16 @@ const qrSpending = asyncHandler(async (req, res) => {
     }
 
     logger.info('Fetching merchant details');
-    const recipientMerchant = await Merchant.findOne({ spendingCode }, { _id: 1, memberId: 1, spendingCode: 1, cashbackRate: 1 });
+    const recipientMerchant = await Merchant.findOne({ spendingCode }, { _id: 1, memberId: 1, spendingCode: 1, cashbackRate: 1, status: 1 });
     if (!recipientMerchant) {
         res.status(404);
         throw new Error('Merchant not found');
     }
-    logger.info(`Merchant : ${recipientMerchant.name}`);
+    logger.info(`Merchant : ${recipientMerchant.name}, Status : ${recipientMerchant.status}`);
+    if (recipientMerchant.status !== 'Active') {
+        res.status(404);
+        throw new Error('Merchant account deactivated');
+    }
 
     logger.info('Fetching member details');
     let recipientMember = await Member.findById(recipientMerchant.memberId, { _id: 1 });
