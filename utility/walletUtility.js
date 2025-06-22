@@ -36,8 +36,14 @@ const handleIncorrectPIN = async ({ wallet, configurations, member }) => {
 
 };
 
+
+const verifyWallet = async (wallet, configurations) => {
+    return wallet.isWalletLocked || (wallet.pinTries > configurations.payments.pinTries);
+};
+
 module.exports = {
     hashPIN,
     verifyPIN,
     handleIncorrectPIN,
+    verifyWallet
 };

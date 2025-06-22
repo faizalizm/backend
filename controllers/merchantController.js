@@ -15,7 +15,9 @@ const { buildMerchantQRPaymentMessage, sendMessage } = require('../services/fire
 const searchMerchant = asyncHandler(async (req, res) => {
     const { field, term, search, page = 1, limit = 5 } = req.query;
 
-    const filter = {}
+    const filter = {
+        status: 'Active' // Only include active merchants
+    };
 
     // Optional field-based search
     if (field && term) {

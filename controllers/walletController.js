@@ -9,7 +9,7 @@ const { getCategoryToyyib, createBillToyyib, getBillTransactionsToyyib } = requi
 const { buildTransferMessage, buildQRPaymentMessage, sendMessage } = require('../services/firebaseCloudMessage');
 
 const { formatAmount } = require('../utility/formatter');
-const { hashPIN, verifyPIN, handleIncorrectPIN } = require('../utility/walletUtility');
+const { hashPIN, verifyPIN, handleIncorrectPIN, verifyWallet } = require('../utility/walletUtility');
 
 const Member = require('../models/memberModel');
 const Wallet = require('../models/walletModel');
@@ -585,7 +585,7 @@ const updatePin = asyncHandler(async (req, res) => {
     }
 
     // PIN lockout check
-    if (wallet.isWalletLocked || (wallet.pinTries > configurations.payments.pinTries)) {
+    if (!verifyWallet(wallet, configurations)) {
         res.status(403);
         throw new Error('PIN has been locked due to multiple failed attempts. Please contact support.');
     }

@@ -70,6 +70,17 @@ const configurationSchema = new mongoose.Schema({
     customerServiceNo: {
         type: String
     },
+    bankTransfer: {
+        recipientBank: {
+            type: String,
+        },
+        recipientName: {
+            default: String
+        },
+        recipientAccountNumber: {
+            type: String,
+        },
+    },
     links: {
         terms: {
             type: String
@@ -78,6 +89,9 @@ const configurationSchema = new mongoose.Schema({
             type: String
         },
         faq: {
+            type: String
+        },
+        ebook: {
             type: String
         },
         deletion: {
