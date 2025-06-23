@@ -27,21 +27,6 @@ const transactionSchema = new mongoose.Schema({
     description: {
         type: String,
         required: [true, 'Please specify description'],
-        //     enum: [
-        //         'Top Up',
-        //         'Withdrawal',
-        //         'Transfer via Phone',
-        //         'Transfer via Email',
-        //         'Transfer via Username',
-        //         'QR Payment',
-        //         'Merchant QR Payment',
-        //         'VIP Payment',
-        //         'VIP Registration Commission',
-        //         'Spending Rewards',
-        //         'Spending Rewards Commision',
-        //         'Points Redemption',
-        //         'Cashback'
-        //     ]
     },
     status: {
         type: String,

@@ -375,18 +375,24 @@ const transferWallet = asyncHandler(async (req, res) => {
         throw new Error('Could not transfer to your own account');
     }
 
+    if (!req.member.userName && !req.member.fullName) {
+        logger.warn('Sender has not set username or fullname');
+        res.status(400);
+        throw new Error('You have not completed your profile');
+    }
+
     logger.info('Fetching recipient details');
-    let description;
+    let method;
     let recipient;
 
     if (userName) {
-        description = 'Transfer via Username';
+        method = 'via Username';
         recipient = await Member.findOne({ userName }, { fullName: 1, email: 1, phone: 1 });
     } else if (phone) {
-        description = 'Transfer via Phone';
+        method = 'via Phone';
         recipient = await Member.findOne({ phone }, { fullName: 1, email: 1, phone: 1 });
     } else if (email) {
-        description = 'Transfer via Email';
+        method = 'via Email';
         recipient = await Member.findOne({ email }, { fullName: 1, email: 1, phone: 1 });
     }
 
@@ -394,6 +400,18 @@ const transferWallet = asyncHandler(async (req, res) => {
         res.status(404);
         throw new Error('Recipient Not Found');
     }
+
+    if (!recipient.userName && !recipient.fullName) {
+        logger.warn('Member has not set username or fullname');
+        res.status(400);
+        throw new Error('Member has not completed their profile');
+    }
+
+    const recipientDisplayName = recipient.userName || recipient.fullName;
+    const senderDescription = `Transfer to ${recipientDisplayName} ${method}`
+
+    const senderDisplayName = req.member.userName || req.member.fullName;
+    const recipientDescription = `Received Transfer from ${senderDisplayName} ${method}`;
 
     logger.info('Fetching sender wallet details');
     const senderWallet = await Wallet.findOne({ memberId: req.member._id });
@@ -421,7 +439,7 @@ const transferWallet = asyncHandler(async (req, res) => {
         walletId: senderWallet._id,
         systemType: 'HubWallet',
         type: 'Debit',
-        description,
+        description: senderDescription,
         status: 'Success',
         counterpartyWalletId: recipientWallet._id,
         amount: amount
@@ -433,7 +451,7 @@ const transferWallet = asyncHandler(async (req, res) => {
         walletId: recipientWallet._id,
         systemType: 'HubWallet',
         type: 'Credit',
-        description,
+        description: recipientDescription,
         status: 'Success',
         counterpartyWalletId: senderWallet._id,
         amount: amount
@@ -515,14 +533,24 @@ const qrPayment = asyncHandler(async (req, res) => {
         throw new Error('Recipient Not Found');
     }
 
-    const description = 'QR Payment';
+    if (!recipient.userName && !recipient.fullName) {
+        logger.warn('Member has not set username or fullname');
+        res.status(400);
+        throw new Error('Member has not completed their profile');
+    }
+
+    const recipientDisplayName = recipient.userName || recipient.fullName;
+    const senderDescription = `QR Payment to ${recipientDisplayName}`;
+
+    const senderDisplayName = req.member.userName || req.member.fullName;
+    const recipientDescription = `Received QR Payment from ${senderDisplayName}`;
 
     logger.info('Creating sender debit transaction');
     const senderTransaction = await Transaction.create({
         walletId: senderWallet._id,
         systemType: 'HubWallet',
         type: 'Debit',
-        description,
+        description: senderDescription,
         status: 'Success',
         counterpartyWalletId: recipientWallet._id,
         amount: amount
@@ -533,7 +561,7 @@ const qrPayment = asyncHandler(async (req, res) => {
         walletId: recipientWallet._id,
         systemType: 'HubWallet',
         type: 'Credit',
-        description,
+        description: recipientDescription,
         status: 'Success',
         counterpartyWalletId: senderWallet._id,
         amount: amount
