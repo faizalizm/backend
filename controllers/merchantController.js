@@ -204,7 +204,7 @@ const updateMerchant = asyncHandler(async (req, res) => {
 });
 
 const qrSpending = asyncHandler(async (req, res) => {
-    const { spendingCode, amount } = req.body;
+    const { spendingCode, amount, walletPin } = req.body;
 
     if (!spendingCode) {
         res.status(400);
@@ -255,7 +255,7 @@ const qrSpending = asyncHandler(async (req, res) => {
     }
 
     logger.info('Fetching member details');
-    let recipientMember = await Member.findById(recipientMerchant.memberId, { _id: 1 });
+    let recipientMember = await Member.findById(recipientMerchant.memberId, { _id: 1, userName: 1, fullName: 1 });
     if (!recipientMember) {
         res.status(404);
         throw new Error('Member not found');
@@ -272,7 +272,6 @@ const qrSpending = asyncHandler(async (req, res) => {
 
     const senderDisplayName = req.member.userName || req.member.fullName;
     const recipientDescription = `Received Merchant QR Payment from ${senderDisplayName}`;
-
 
     const recipientWallet = await Wallet.findOne({ memberId: recipientMerchant.memberId });
     if (!recipientWallet) {

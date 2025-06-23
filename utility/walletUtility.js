@@ -41,9 +41,19 @@ const verifyWallet = async (wallet, configurations) => {
     return wallet.isWalletLocked || (wallet.pinTries > configurations.payments.pinTries);
 };
 
+const requirePin = async (wallet, configurations, amount) => {
+    if (amount >= wallet.minPinPrompt) {
+        return true;
+    } else if (amount >= configurations.payments.defaultPinPrompt) {
+        return true;
+    }
+    return false;
+};
+
 module.exports = {
     hashPIN,
     verifyPIN,
     handleIncorrectPIN,
-    verifyWallet
+    verifyWallet,
+    requirePin
 };
