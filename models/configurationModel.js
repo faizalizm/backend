@@ -34,7 +34,7 @@ const configurationSchema = new mongoose.Schema({
     payments: {
         defaultPinPrompt: {
             type: Number,
-            default: 250
+            default: 25000
         },
         pinTries: { // Tries untuk lockout
             type: Number,

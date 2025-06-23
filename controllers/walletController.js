@@ -9,7 +9,7 @@ const { getCategoryToyyib, createBillToyyib, getBillTransactionsToyyib } = requi
 const { buildTransferMessage, buildQRPaymentMessage, sendMessage } = require('../services/firebaseCloudMessage');
 
 const { formatAmount } = require('../utility/formatter');
-const { hashPIN, verifyPIN, handleIncorrectPIN, verifyWallet } = require('../utility/walletUtility');
+const { hashPIN, verifyPIN, handleIncorrectPIN, verifyWallet, requirePin } = require('../utility/walletUtility');
 
 const Member = require('../models/memberModel');
 const Wallet = require('../models/walletModel');
@@ -78,6 +78,7 @@ const getWallet = asyncHandler(async (req, res) => {
         balance: wallet.balance,
         points: wallet.points,
         currency: wallet.currency,
+        minPinPrompt: wallet.minPinPrompt,
         transactions
     });
 });
@@ -323,7 +324,8 @@ const transferVerification = asyncHandler(async (req, res) => {
 
         logger.info('Checking recipient is ownself');
         if ((email && email.trim() === req.member.email)
-            || phone && phone.trim() === req.member.phone) {
+            || phone && phone.trim() === req.member.phone
+            || userName && userName.trim() === req.member.userName) {
             res.status(400);
             throw new Error('Could not transfer to your own account');
         }
@@ -358,7 +360,7 @@ const transferVerification = asyncHandler(async (req, res) => {
 });
 
 const transferWallet = asyncHandler(async (req, res) => {
-    const { userName, email, phone, amount } = req.body;
+    const { userName, email, phone, amount, walletPin } = req.body;
 
     if (!userName && !email && !phone) {
         res.status(400);
@@ -387,13 +389,13 @@ const transferWallet = asyncHandler(async (req, res) => {
 
     if (userName) {
         method = 'via Username';
-        recipient = await Member.findOne({ userName }, { fullName: 1, email: 1, phone: 1 });
+        recipient = await Member.findOne({ userName }, { userName: 1, fullName: 1, email: 1, phone: 1 });
     } else if (phone) {
         method = 'via Phone';
-        recipient = await Member.findOne({ phone }, { fullName: 1, email: 1, phone: 1 });
+        recipient = await Member.findOne({ phone }, { userName: 1, fullName: 1, email: 1, phone: 1 });
     } else if (email) {
         method = 'via Email';
-        recipient = await Member.findOne({ email }, { fullName: 1, email: 1, phone: 1 });
+        recipient = await Member.findOne({ email }, { userName: 1, fullName: 1, email: 1, phone: 1 });
     }
 
     if (!recipient) {
@@ -486,7 +488,7 @@ const transferWallet = asyncHandler(async (req, res) => {
 });
 
 const qrPayment = asyncHandler(async (req, res) => {
-    const { paymentCode, amount } = req.body;
+    const { paymentCode, amount, walletPin } = req.body;
 
     if (!paymentCode) {
         res.status(400);
@@ -527,7 +529,7 @@ const qrPayment = asyncHandler(async (req, res) => {
     logger.info(`Recipient balance : RM ${recipientWallet.balance / 100}, Receiving amount : RM ${amount / 100}`);
 
     logger.info('Fetching recipient details');
-    const recipient = await Member.findOne({ _id: recipientWallet.memberId }, { fullName: 1, email: 1, phone: 1 });
+    const recipient = await Member.findOne({ _id: recipientWallet.memberId }, { userName: 1, fullName: 1, email: 1, phone: 1 });
     if (!recipient) {
         res.status(404);
         throw new Error('Recipient Not Found');
