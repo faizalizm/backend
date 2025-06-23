@@ -32,7 +32,7 @@ const configurationSchema = new mongoose.Schema({
         }
     },
     payments: {
-        minForPin: {
+        defaultPinPrompt: {
             type: Number,
             default: 250
         },

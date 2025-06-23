@@ -219,6 +219,12 @@ const qrSpending = asyncHandler(async (req, res) => {
         throw new Error('QR code is not valid');
     }
 
+    if (!req.member.userName && !req.member.fullName) {
+        logger.warn('Sender has not set username or fullname');
+        res.status(400);
+        throw new Error('You have not completed your profile');
+    }
+
     logger.info(`Fetching sender details`);
     const senderMerchant = await Merchant.findOne({ memberId: req.member._id }, { _id: 1, memberId: 1, spendingCode: 1 });
 
@@ -255,6 +261,19 @@ const qrSpending = asyncHandler(async (req, res) => {
         throw new Error('Member not found');
     }
 
+    if (!recipientMember.userName && !recipientMember.fullName) {
+        logger.warn('Merchant has not set username or fullname');
+        res.status(400);
+        throw new Error('Merchant has not completed their profile');
+    }
+
+    const recipientDisplayName = recipientMember.userName || recipientMember.fullName;
+    const senderDescription = `Merchant QR Payment to ${recipientDisplayName}`;
+
+    const senderDisplayName = req.member.userName || req.member.fullName;
+    const recipientDescription = `Received Merchant QR Payment from ${senderDisplayName}`;
+
+
     const recipientWallet = await Wallet.findOne({ memberId: recipientMerchant.memberId });
     if (!recipientWallet) {
         res.status(404);
@@ -264,14 +283,12 @@ const qrSpending = asyncHandler(async (req, res) => {
         throw new Error('Could not transfer to your own account');
     }
 
-    const description = 'Merchant QR Payment';
-
     logger.info('Creating sender debit transaction');
     const senderTransaction = await Transaction.create({
         walletId: senderWallet._id,
         systemType: 'HubWallet',
         type: 'Debit',
-        description,
+        description: senderDescription,
         status: 'Success',
         counterpartyWalletId: recipientWallet._id,
         amount: amount
@@ -287,7 +304,7 @@ const qrSpending = asyncHandler(async (req, res) => {
         walletId: recipientWallet._id,
         systemType: 'HubWallet',
         type: 'Credit',
-        description,
+        description: recipientDescription,
         status: 'Success',
         counterpartyWalletId: senderWallet._id,
         amount: receivingAmount
