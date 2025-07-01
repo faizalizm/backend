@@ -1,6 +1,8 @@
 const mongoose = require('mongoose');
 const moment = require('moment-timezone');
 
+const { referralStatsSchema } = require('./referralSchema');
+
 const lifestyleSchema = new mongoose.Schema({
     title: {
         type: String,
@@ -37,20 +39,13 @@ const lifestyleSchema = new mongoose.Schema({
         }
     },
     requirement: {
-        type: [
-            {
-                level: {
-                    type: Number,
-                    required: true
-                },
-                vipRequired: {
-                    type: Number,
-                    required: true,
-                    min: 1
-                }
-            }
-        ],
-        required: [true, 'Please specify at least one level requirement'],
+        type: String,
+        required: [true, 'Please specify requirement'],
+        trim: true
+    },
+    referralRequirement: {
+        type: [referralStatsSchema],
+        default: [] // Default to an empty array
     },
     priority: {
         type: Number,
