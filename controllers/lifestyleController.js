@@ -97,19 +97,9 @@ const claimReward = asyncHandler(async (req, res) => {
         // Todo : Check if member has previously claimed
 
         // Check if member met the requirements
-        const allRequirementsMet = lifestyleRewards.requirement.every(requirements => {
-            const level = requirements.level;
-            const requiredVip = requirements.vipRequired;
-
-            // Find member's referral stats for this level
-            const stat = req.member.referralStats.find(s => s.level === level);
-            const vipCount = stat?.vip || 0;
-
-            logger.info(`Level ${level} - Required VIP: ${requiredVip}, Member VIP: ${vipCount}`);
-
-            return vipCount >= requiredVip;
-        });
-        if (!allRequirementsMet) {
+        const totalVip = req.member.referralStats.reduce((sum, stat) => sum + (stat.vip || 0), 0);
+        logger.info(`Total VIP : ${totalVip}, Claim Requirements : ${lifestyleRewards.requirement}`);
+        if (totalVip < lifestyleRewards.requirement) {
             res.status(400);
             throw new Error('VIP requirements has not been met');
         }

@@ -9,7 +9,7 @@ const { getCategoryToyyib, createBillToyyib, getBillTransactionsToyyib } = requi
 const { buildTransferMessage, buildQRPaymentMessage, sendMessage } = require('../services/firebaseCloudMessage');
 
 const { formatAmount } = require('../utility/formatter');
-const { hashPIN, verifyPIN, handleIncorrectPIN, verifyWallet, requirePin } = require('../utility/walletUtility');
+const { hashPIN, verifyPIN, handleIncorrectPIN, isWalletLocked, requirePin } = require('../utility/walletUtility');
 
 const Member = require('../models/memberModel');
 const Wallet = require('../models/walletModel');
@@ -79,10 +79,77 @@ const getWallet = asyncHandler(async (req, res) => {
         points: wallet.points,
         currency: wallet.currency,
         minPinPrompt: wallet.minPinPrompt,
-        transactions
+        transactions // TODO : remove
     });
 });
 
+const getWalletHistory = asyncHandler(async (req, res) => {
+    const { field, term, page = 1, limit = 30 } = req.query;
+
+    const pageNumber = parseInt(page, 10);
+    const pageSize = parseInt(limit, 10);
+    const skip = (pageNumber - 1) * pageSize;
+
+    // Find the wallet linked to the member
+    logger.info('Fetching wallet details');
+    const wallet = await Wallet.findOne({ memberId: req.member._id });
+    if (!wallet) {
+        res.status(404);
+        throw new Error('Wallet Not Found');
+    }
+
+    // Find all transactions linked to the wallet
+    logger.info('Fetching points history - Status : Success / In Progress');
+    const transactions = await Transaction.find({
+        $or: [
+            // Withdrawals: Include 'Success' and 'In Progress'
+            {
+                $and: [
+                    { description: 'Withdrawal' },
+                    {
+                        systemType: { $in: ['HubWallet', 'FPX'] },
+                        walletId: wallet._id,
+                        status: { $in: ['Success', 'In Progress'] },
+                    }
+                ]
+            },
+            // All other transactions: Only 'Success'
+            {
+                $and: [
+                    { description: { $ne: 'Withdrawal' } },
+                    {
+                        systemType: { $in: ['HubWallet', 'FPX'] },
+                        walletId: wallet._id,
+                        status: 'Success',
+                    }
+                ]
+            }
+        ]
+    }, {
+        _id: 0,
+        systemType: 1,
+        type: 1,
+        description: 1,
+        status: 1,
+        amount: 1,
+        createdAt: 1
+    }).sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(pageSize);
+
+    if (transactions.length > 0) {
+        res.status(200).json({
+            transactions,
+            pagination: {
+                page: Number(page),
+                limit: Number(limit),
+            }
+        });
+    } else {
+        res.status(404);
+        throw new Error('No transaction found');
+    }
+});
 
 const topupWallet = asyncHandler(async (req, res) => {
     const { paymentChannel, amount } = req.body;
@@ -170,7 +237,7 @@ const topupWallet = asyncHandler(async (req, res) => {
 });
 
 const withdrawWallet = asyncHandler(async (req, res) => {
-    const { withdrawChannel, amount } = req.body;
+    const { withdrawChannel, amount, walletPin } = req.body;
 
     const minWithdrawal = 1000;
 
@@ -196,6 +263,41 @@ const withdrawWallet = asyncHandler(async (req, res) => {
     if (!wallet) {
         res.status(404);
         throw new Error('Wallet Not Found');
+    }
+
+    logger.info('Fetching configuration');
+    const configurations = await Configuration.getSingleton();
+    if (!configurations) {
+        res.status(500);
+        throw new Error('Configuration not found');
+    }
+
+    // PIN lockout check
+    if (isWalletLocked(wallet, configurations)) {
+        res.status(403);
+        throw new Error('PIN has been locked due to multiple failed attempts. Please contact support.');
+    }
+    if (requirePin(wallet, configurations, amount)) {
+        logger.info('Transaction requires PIN');
+        if (!wallet.pin) {
+            res.status(403);
+            throw new Error('Transaction above limit, please set up your pin');
+        }
+        if (!walletPin) {
+            res.status(403);
+            throw new Error('Enter your wallet PIN');
+        }
+
+        const isPINValid = await verifyPIN(walletPin, wallet.pin);
+        if (!isPINValid) {
+            // Security violation
+            res.status(403);
+            return await handleIncorrectPIN({
+                wallet,
+                configurations,
+                member: req.member
+            });
+        }
     }
 
     const transactionData = {
@@ -422,6 +524,41 @@ const transferWallet = asyncHandler(async (req, res) => {
         throw new Error('Sender wallet not found');
     }
 
+    logger.info('Fetching configuration');
+    const configurations = await Configuration.getSingleton();
+    if (!configurations) {
+        res.status(500);
+        throw new Error('Configuration not found');
+    }
+
+    // PIN lockout check
+    if (isWalletLocked(senderWallet, configurations)) {
+        res.status(403);
+        throw new Error('PIN has been locked due to multiple failed attempts. Please contact support.');
+    }
+    if (requirePin(senderWallet, configurations, amount)) {
+        logger.info('Transaction requires PIN');
+        if (!senderWallet.pin) {
+            res.status(403);
+            throw new Error('Transaction above limit, please set up your pin');
+        }
+        if (!walletPin) {
+            res.status(403);
+            throw new Error('Enter your wallet PIN');
+        }
+
+        const isPINValid = await verifyPIN(walletPin, senderWallet.pin);
+        if (!isPINValid) {
+            // Security violation
+            res.status(403);
+            return await handleIncorrectPIN({
+                wallet: senderWallet,
+                configurations,
+                member: req.member
+            });
+        }
+    }
+
     logger.info('Fetching recipient wallet details');
     const recipientWallet = await Wallet.findOne({ memberId: recipient._id });
     if (!recipientWallet) {
@@ -515,6 +652,41 @@ const qrPayment = asyncHandler(async (req, res) => {
     if (senderWallet.balance < amount) {
         res.status(402); // HTTP 402: Payment Required
         throw new Error('Insufficient funds');
+    }
+
+    logger.info('Fetching configuration');
+    const configurations = await Configuration.getSingleton();
+    if (!configurations) {
+        res.status(500);
+        throw new Error('Configuration not found');
+    }
+
+    // PIN lockout check
+    if (isWalletLocked(senderWallet, configurations)) {
+        res.status(403);
+        throw new Error('PIN has been locked due to multiple failed attempts. Please contact support.');
+    }
+    if (requirePin(senderWallet, configurations, amount)) {
+        logger.info('Transaction requires PIN');
+        if (!senderWallet.pin) {
+            res.status(403);
+            throw new Error('Transaction above limit, please set up your pin');
+        }
+        if (!walletPin) {
+            res.status(403);
+            throw new Error('Enter your wallet PIN');
+        }
+
+        const isPINValid = await verifyPIN(walletPin, senderWallet.pin);
+        if (!isPINValid) {
+            // Security violation
+            res.status(403);
+            return await handleIncorrectPIN({
+                wallet: senderWallet,
+                configurations,
+                member: req.member
+            });
+        }
     }
 
     logger.info('Fetching recipient wallet details');
@@ -615,16 +787,24 @@ const updatePin = asyncHandler(async (req, res) => {
     }
 
     // PIN lockout check
-    if (!verifyWallet(wallet, configurations)) {
+    if (isWalletLocked(wallet, configurations)) {
         res.status(403);
         throw new Error('PIN has been locked due to multiple failed attempts. Please contact support.');
     }
 
-    if (!wallet.pin && minPinPrompt !== undefined) {
+    // CASE: User tries to set minPinPrompt without PIN
+    if (minPinPrompt !== undefined && !wallet.pin) {
         res.status(400);
         throw new Error('You must setup a PIN before updating the minimum PIN prompt');
     }
 
+    // CASE: User sends newPin while only updating minPinPrompt
+    if (minPinPrompt !== undefined && newPin) {
+        res.status(400);
+        throw new Error('New PIN is not required for updating minimum PIN prompt');
+    }
+
+    // CASE: Wallet already has a PIN, validate old PIN
     if (wallet.pin) {
         // Only validate old pin if previously set-up
         if (!oldPin || !/^\d{6}$/.test(oldPin)) {
@@ -642,23 +822,36 @@ const updatePin = asyncHandler(async (req, res) => {
                 member: req.member
             });
         }
+
+        // Only allow update minimum PIN prompt if old PIN is valid
+        if (minPinPrompt !== undefined) {
+            if (!/^\d+$/.test(minPinPrompt)) {
+                res.status(400);
+                throw new Error('Minimum amount for PIN is not valid');
+            }
+            if (minPinPrompt < configurations.payments.minPinPrompt || minPinPrompt > configurations.payments.maxPinPrompt) {
+                res.status(400);
+                throw new Error('Minimum amount for PIN must be between RM 0 to RM 1000');
+            }
+
+            wallet.minPinPrompt = minPinPrompt;
+        }
+
+        if (newPin) {
+            if (!/^\d{6}$/.test(newPin)) {
+                res.status(400);
+                throw new Error('New PIN must be a 6-digit number');
+            }
+            wallet.pin = await hashPIN(newPin);
+        }
+    } else {
+        if (!newPin || !/^\d{6}$/.test(newPin)) {
+            res.status(400);
+            throw new Error('You must provide a valid 6-digit new PIN');
+        }
+        wallet.pin = await hashPIN(newPin);
     }
 
-    // Only allow update minimum PIN prompt if old PIN is valid
-    if (minPinPrompt !== undefined) {
-        if (!/^\d+$/.test(minPinPrompt)) {
-            res.status(400);
-            throw new Error('Minimum amount for PIN is not valid');
-        }
-        if (minPinPrompt < configurations.payments.minPinPrompt || minPinPrompt > configurations.payments.maxPinPrompt) {
-            res.status(400);
-            throw new Error('Minimum amount for PIN must be between RM 0 to RM 1000');
-        }
-
-        wallet.minPinPrompt = minPinPrompt;
-    }
-
-    wallet.pin = await hashPIN(newPin);
     wallet.lastPinChangedAt = new Date();
     wallet.pinTries = 0;
     await wallet.save();
@@ -714,6 +907,7 @@ const sendWithdrawalNotification = async (member, transaction) => {
 
 module.exports = {
     getWallet,
+    getWalletHistory,
     topupWallet,
     withdrawWallet,
     transferVerification,

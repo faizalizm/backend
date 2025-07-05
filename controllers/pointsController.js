@@ -85,8 +85,54 @@ const getPoints = asyncHandler(async (req, res) => {
 
     res.status(200).json({
         points: wallet.points,
-        transactions
+        transactions // TODO : remove
     });
+});
+
+const getPointHistory = asyncHandler(async (req, res) => {
+    const { page = 1, limit = 5 } = req.query;
+
+    const pageNumber = parseInt(page, 10);
+    const pageSize = parseInt(limit, 10);
+    const skip = (pageNumber - 1) * pageSize;
+
+    // Find the wallet linked to the member
+    logger.info('Fetching wallet details');
+    const wallet = await Wallet.findOne({ memberId: req.member._id });
+    if (!wallet) {
+        res.status(404);
+        throw new Error('Wallet Not Found');
+    }
+
+    // Find all transactions linked to the wallet
+    logger.info('Fetching points history - Status : Success');
+    const transactions = await Transaction.find({
+        systemType: 'HubPoints',
+        walletId: wallet._id,
+        status: { $in: ['Success'] },
+    }, {
+        systemType: 1,
+        type: 1,
+        description: 1,
+        status: 1,
+        amount: 1,
+        createdAt: 1,
+    }).sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(pageSize);
+
+    if (transactions.length > 0) {
+        res.status(200).json({
+            transactions,
+            pagination: {
+                page: Number(page),
+                limit: Number(limit),
+            }
+        });
+    } else {
+        res.status(404);
+        throw new Error('No transaction found');
+    }
 });
 
 const redeemPoints = asyncHandler(async (req, res) => {
@@ -275,4 +321,4 @@ const claimReward = asyncHandler(async (req, res) => {
     }
 });
 
-module.exports = { getPointsReward, getPoints, redeemPoints, claimReward };
+module.exports = { getPointsReward, getPoints, getPointHistory, redeemPoints, claimReward };

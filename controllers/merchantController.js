@@ -8,9 +8,12 @@ const Member = require('../models/memberModel');
 const Merchant = require('../models/merchantModel');
 const Wallet = require('../models/walletModel');
 const Transaction = require('../models/transactionModel');
+const Configuration = require('../models/configurationModel');
 
 const { processSpendingReward } = require('../controllers/commisionController');
 const { buildMerchantQRPaymentMessage, sendMessage } = require('../services/firebaseCloudMessage');
+
+const { verifyPIN, handleIncorrectPIN, isWalletLocked, requirePin } = require('../utility/walletUtility');
 
 const searchMerchant = asyncHandler(async (req, res) => {
     const { field, term, search, page = 1, limit = 5 } = req.query;
@@ -240,6 +243,42 @@ const qrSpending = asyncHandler(async (req, res) => {
     if (senderWallet.balance < amount) {
         res.status(402); // HTTP 402: Payment Required
         throw new Error('Insufficient funds');
+    }
+
+
+    logger.info('Fetching configuration');
+    const configurations = await Configuration.getSingleton();
+    if (!configurations) {
+        res.status(500);
+        throw new Error('Configuration not found');
+    }
+
+    // PIN lockout check
+    if (isWalletLocked(senderWallet, configurations)) {
+        res.status(403);
+        throw new Error('PIN has been locked due to multiple failed attempts. Please contact support.');
+    }
+    if (requirePin(senderWallet, configurations, amount)) {
+        logger.info('Transaction requires PIN');
+        if (!senderWallet.pin) {
+            res.status(403);
+            throw new Error('Transaction above limit, please set up your pin');
+        }
+        if (!walletPin) {
+            res.status(403);
+            throw new Error('Enter your wallet PIN');
+        }
+
+        const isPINValid = await verifyPIN(walletPin, senderWallet.pin);
+        if (!isPINValid) {
+            // Security violation
+            res.status(403);
+            return await handleIncorrectPIN({
+                wallet: senderWallet,
+                configurations,
+                member: req.member
+            });
+        }
     }
 
     logger.info('Fetching merchant details');

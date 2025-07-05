@@ -9,8 +9,22 @@ const connectDB = async () => {
         const conn = await mongoose.connect(mongoURI);
         console.log(`MongoDB Connected : ${conn.connection.host}`.cyan.underline);
 
+        // mongoose.set('debug', (coll, method, query, doc) => {
+        //     logger.info(colors.gray(`Mongoose: ${coll}.${method}(${JSON.stringify(query)}, ${JSON.stringify(doc)})`));
+        // });
         mongoose.set('debug', (coll, method, query, doc) => {
-            logger.info(colors.gray(`Mongoose: ${coll}.${method}(${JSON.stringify(query)}, ${JSON.stringify(doc)})`));
+            let safeQuery = '[Unserializable]';
+            let safeDoc = '[Unserializable]';
+
+            try {
+                safeQuery = JSON.stringify(query);
+            } catch (e) { }
+
+            try {
+                safeDoc = JSON.stringify(doc);
+            } catch (e) { }
+
+            logger.info(colors.gray(`Mongoose: ${coll}.${method}(${safeQuery}, ${safeDoc})`));
         });
 
         // Log all queries and their results
@@ -94,6 +108,7 @@ const closeDB = async () => {
 
 const startManagedSession = async (options = {}) => {
     const session = await mongoose.startSession();
+    logger.info('🔌 Session started');
 
     session.startTransaction({
         readConcern: { level: 'local' },
