@@ -105,11 +105,11 @@ const claimReward = asyncHandler(async (req, res) => {
         }
 
         // Check if member met the requirements
-        const totalVip = req.member.referralStats.reduce((sum, stat) => sum + (stat.vip || 0), 0);
-        logger.info(`Total VIP : ${totalVip}, Claim Requirements : ${lifestyleRewards.requirement}`);
-        if (totalVip < lifestyleRewards.requirement) {
+        const directVip = req.member.referralStats?.find(stat => stat.level === 1)?.vip || 0;
+        logger.info(`Direct VIP : ${directVip}, Claim Requirements : ${lifestyleRewards.requirement}`);
+        if (directVip < lifestyleRewards.requirement) {
             res.status(400);
-            throw new Error(`VIP requirements has not been met. You are at ${totalVip}/${lifestyleRewards.requirement} VIP`);
+            throw new Error(`VIP requirements has not been met. You are at ${directVip}/${lifestyleRewards.requirement} VIP`);
         }
 
         logger.info('Creating logistic tracking');
