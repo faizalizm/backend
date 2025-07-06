@@ -1,3 +1,4 @@
+const { generateUniqueId } = require('../services/mongodb');
 const { logger } = require('../services/logger');
 const { buildSpendingRewardMessage, buildVIPCommisionMessage, sendMessage } = require('../services/firebaseCloudMessage');
 
@@ -70,6 +71,7 @@ const processVIPCommision = async (member, amount) => {
 
                     logger.info('Creating credit transaction');
                     await Transaction.create({
+                        referenceNumber: generateUniqueId('RH-VPC'),
                         walletId: uplineWallet._id,
                         systemType: 'HubWallet',
                         type: 'Credit',
@@ -134,6 +136,7 @@ const processSpendingReward = async (spenderWallet, member, cashbackRate, amount
     await spenderWallet.save();
 
     await Transaction.create({
+        referenceNumber: generateUniqueId('RH-SDR'),
         walletId: spenderWallet._id,
         systemType: 'HubPoints',
         type: 'Credit',
@@ -198,6 +201,7 @@ const processSpendingReward = async (spenderWallet, member, cashbackRate, amount
 
                     logger.info('Creating credit transaction');
                     await Transaction.create({
+                        referenceNumber: generateUniqueId('RH-SDR'),
                         walletId: uplineWallet._id,
                         systemType: 'HubWallet',
                         type: 'Credit',

@@ -5,6 +5,11 @@ const bankDetailsSchema = require('./bankDetailsSchema');
 const shippingDetailsSchema = require('./shippingDetailsSchema');
 
 const transactionSchema = new mongoose.Schema({
+    referenceNumber: {
+        type: String,
+        required: true,
+        unique: true
+    },
     walletId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Wallet', // Reference to the referred wallet

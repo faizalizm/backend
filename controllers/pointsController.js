@@ -1,6 +1,6 @@
 const asyncHandler = require('express-async-handler');
 
-const { startManagedSession } = require('../services/mongodb');
+const { startManagedSession, generateUniqueId } = require('../services/mongodb');
 const { logger } = require('../services/logger');
 
 const PointsReward = require('../models/pointsRewardModel');
@@ -85,8 +85,54 @@ const getPoints = asyncHandler(async (req, res) => {
 
     res.status(200).json({
         points: wallet.points,
-        transactions
+        transactions // TODO : remove
     });
+});
+
+const getPointHistory = asyncHandler(async (req, res) => {
+    const { page = 1, limit = 5 } = req.query;
+
+    const pageNumber = parseInt(page, 10);
+    const pageSize = parseInt(limit, 10);
+    const skip = (pageNumber - 1) * pageSize;
+
+    // Find the wallet linked to the member
+    logger.info('Fetching wallet details');
+    const wallet = await Wallet.findOne({ memberId: req.member._id });
+    if (!wallet) {
+        res.status(404);
+        throw new Error('Wallet Not Found');
+    }
+
+    // Find all transactions linked to the wallet
+    logger.info('Fetching points history - Status : Success');
+    const transactions = await Transaction.find({
+        systemType: 'HubPoints',
+        walletId: wallet._id,
+        status: { $in: ['Success'] },
+    }, {
+        systemType: 1,
+        type: 1,
+        description: 1,
+        status: 1,
+        amount: 1,
+        createdAt: 1,
+    }).sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(pageSize);
+
+    if (transactions.length > 0) {
+        res.status(200).json({
+            transactions,
+            pagination: {
+                page: Number(page),
+                limit: Number(limit),
+            }
+        });
+    } else {
+        res.status(404);
+        throw new Error('No transaction found');
+    }
 });
 
 const redeemPoints = asyncHandler(async (req, res) => {
@@ -130,6 +176,7 @@ const redeemPoints = asyncHandler(async (req, res) => {
     try {
         logger.info('Creating debit point transaction');
         const pointsTransaction = await Transaction.create({
+            referenceNumber: generateUniqueId('RH-PTS'),
             walletId: wallet._id,
             systemType: 'HubPoints',
             type: 'Debit',
@@ -140,6 +187,7 @@ const redeemPoints = asyncHandler(async (req, res) => {
 
         logger.info('Creating credit cash transaction');
         const walletTransaction = await Transaction.create({
+            referenceNumber: generateUniqueId('RH-PTS'),
             walletId: wallet._id,
             systemType: 'HubWallet',
             type: 'Credit',
@@ -203,7 +251,6 @@ const claimReward = asyncHandler(async (req, res) => {
             throw new Error('Points reward not active');
         }
 
-
         // Check points reward availability
         logger.info('Validating points reward availability');
         const now = new Date();
@@ -230,11 +277,12 @@ const claimReward = asyncHandler(async (req, res) => {
         logger.info('Checking points balance');
         if (wallet.points < pointRewards.pointsRequirement) {
             res.status(402); // HTTP 402: Payment Required
-            throw new Error('Insufficient points to convert');
+            throw new Error('Insufficient points to claim');
         }
 
         logger.info('Creating debit point transaction');
-        const pointsTransaction = await Transaction.create([{
+        const [pointsTransaction] = await Transaction.create([{
+            referenceNumber: generateUniqueId('RH-PTR'),
             walletId: wallet._id,
             systemType: 'HubPoints',
             type: 'Debit',
@@ -244,13 +292,19 @@ const claimReward = asyncHandler(async (req, res) => {
         }], { session });
 
         logger.info('Creating logistic tracking');
-        const logisticTracking = await Logistic.create([{
+        const [logisticTracking] = await Logistic.create([{
+            referenceNumber: generateUniqueId('RH-PTR'),
+            memberId: req.member._id,
             transactionId: pointsTransaction._id,
             systemType: 'Points Reward',
-            description: `${pointRewards.title}`,
+            description: `1x ${pointRewards.title}`,
             pointsRewardId: pointRewards._id,
-            status: 'Preparing',
             shippingDetails: req.member.shippingDetails,
+            statusHistory: [{
+                status: 'Preparing',
+                updatedAt: new Date(),
+                updatedBy: req.member._id
+            }]
         }], { session });
         logger.info(`Logistic tracking created: ${logisticTracking._id}`);
 
@@ -260,13 +314,16 @@ const claimReward = asyncHandler(async (req, res) => {
 
         // Send shipment notification
         logger.info('Sending shipping notification via email');
-        sendShipmentNotification(req.member, pointsTransaction);
+        const value = `${pointsTransaction.amount} HubPoints`;
+        await sendShipmentNotification(req.member, logisticTracking.toJSON(), value);
 
         await session.commitTransaction();
         res.status(200).json({
             message: 'Points reward successfully claimed. You will receive updates on the shipment soon!',
         });
     } catch (error) {
+        logger.error(`Error processing : ${error.message}`);
+
         await session.abortTransaction();
         throw error;
 
@@ -275,4 +332,4 @@ const claimReward = asyncHandler(async (req, res) => {
     }
 });
 
-module.exports = { getPointsReward, getPoints, redeemPoints, claimReward };
+module.exports = { getPointsReward, getPoints, getPointHistory, redeemPoints, claimReward };

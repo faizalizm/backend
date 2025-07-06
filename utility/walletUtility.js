@@ -5,18 +5,18 @@ const bcrypt = require('bcryptjs');
 // Enterprise-grade: work factor of 12 (increase for slower hashing)
 const WORK_FACTOR = 12;
 
-const hashPIN = async (plainPIN) => {
+const hashPIN = (plainPIN) => {
     if (!/^\d{6}$/.test(plainPIN)) {
         throw new Error('PIN must be exactly 6 digits');
     }
-    return await bcrypt.hash(plainPIN, WORK_FACTOR);
+    return bcrypt.hash(plainPIN, WORK_FACTOR);
 };
 
-const verifyPIN = async (plainPIN, hashedPIN) => {
-    return await bcrypt.compare(plainPIN, hashedPIN);
+const verifyPIN = (plainPIN, hashedPIN) => {
+    return bcrypt.compare(plainPIN, hashedPIN);
 };
 
-const handleIncorrectPIN = async ({ wallet, configurations, member }) => {
+const handleIncorrectPIN = ({ wallet, configurations, member }) => {
     const maxTries = configurations.payments.pinTries;
 
     wallet.pinTries = (wallet.pinTries || 0) + 1;
@@ -24,11 +24,11 @@ const handleIncorrectPIN = async ({ wallet, configurations, member }) => {
     if (wallet.pinTries >= maxTries) {
         logger.warn(`PIN locked due to too many attempts - Member RefCode : ${member.referralCode}`);
         wallet.isWalletLocked = true;
-        await wallet.save();
+        wallet.save();
         throw new Error('PIN has been locked due to too many failed attempts. Please contact support.');
     }
 
-    await wallet.save();
+    wallet.save();
     const remaining = maxTries - wallet.pinTries;
 
     logger.warn(`Invalid PIN attempt - Member RefCode: ${member.referralCode}, Attempt ${wallet.pinTries}`);
@@ -37,11 +37,11 @@ const handleIncorrectPIN = async ({ wallet, configurations, member }) => {
 };
 
 
-const verifyWallet = async (wallet, configurations) => {
+const isWalletLocked = (wallet, configurations) => {
     return wallet.isWalletLocked || (wallet.pinTries > configurations.payments.pinTries);
 };
 
-const requirePin = async (wallet, configurations, amount) => {
+const requirePin = (wallet, configurations, amount) => {
     if (amount >= wallet.minPinPrompt) {
         return true;
     } else if (amount >= configurations.payments.defaultPinPrompt) {
@@ -54,6 +54,6 @@ module.exports = {
     hashPIN,
     verifyPIN,
     handleIncorrectPIN,
-    verifyWallet,
+    isWalletLocked,
     requirePin
 };

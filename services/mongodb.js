@@ -1,5 +1,6 @@
 const colors = require('colors');
 const mongoose = require('mongoose');
+const crypto = require('crypto');
 
 const { logger, trimBase64 } = require('./logger');
 
@@ -9,8 +10,22 @@ const connectDB = async () => {
         const conn = await mongoose.connect(mongoURI);
         console.log(`MongoDB Connected : ${conn.connection.host}`.cyan.underline);
 
+        // mongoose.set('debug', (coll, method, query, doc) => {
+        //     logger.info(colors.gray(`Mongoose: ${coll}.${method}(${JSON.stringify(query)}, ${JSON.stringify(doc)})`));
+        // });
         mongoose.set('debug', (coll, method, query, doc) => {
-            logger.info(colors.gray(`Mongoose: ${coll}.${method}(${JSON.stringify(query)}, ${JSON.stringify(doc)})`));
+            let safeQuery = '[Unserializable]';
+            let safeDoc = '[Unserializable]';
+
+            try {
+                safeQuery = JSON.stringify(query);
+            } catch (e) { }
+
+            try {
+                safeDoc = JSON.stringify(doc);
+            } catch (e) { }
+
+            logger.info(colors.gray(`Mongoose: ${coll}.${method}(${safeQuery}, ${safeDoc})`));
         });
 
         // Log all queries and their results
@@ -94,6 +109,7 @@ const closeDB = async () => {
 
 const startManagedSession = async (options = {}) => {
     const session = await mongoose.startSession();
+    logger.info('🔌 Session started');
 
     session.startTransaction({
         readConcern: { level: 'local' },
@@ -104,4 +120,15 @@ const startManagedSession = async (options = {}) => {
     return session;
 };
 
-module.exports = { connectDB, closeDB, startManagedSession };
+const generateUniqueId = (prefix) => {
+    const id = new mongoose.Types.ObjectId();
+
+    const hash = crypto.createHash('md5').update(id.toString()).digest('hex');
+    return `${prefix}-${hash.slice(0, 8).toUpperCase()}`;
+}
+
+module.exports = {
+    connectDB, closeDB,
+    startManagedSession,
+    generateUniqueId
+};

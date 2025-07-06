@@ -3,18 +3,20 @@ const { protect } = require('../middleware/authMiddleware');
 
 const {
     getWallet,
+    getWalletHistory,
     topupWallet,
     withdrawWallet,
     transferVerification,
     transferWallet,
     qrPayment,
     genQRCode,
-    updatePin
+    updatePin,
 } = require('../controllers/walletController');
 
 const router = express.Router();
 
 router.get('/', protect, getWallet);
+router.get('/history', protect, getWalletHistory);
 router.post('/topup', protect, topupWallet);
 router.post('/withdrawal', protect, withdrawWallet);
 router.post('/transfer', protect, transferWallet);

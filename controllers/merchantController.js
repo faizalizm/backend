@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const asyncHandler = require('express-async-handler');
 
+const { generateUniqueId } = require('../services/mongodb');
 const { logger } = require('../services/logger');
 const { resizeImage } = require('../services/sharp');
 
@@ -8,9 +9,12 @@ const Member = require('../models/memberModel');
 const Merchant = require('../models/merchantModel');
 const Wallet = require('../models/walletModel');
 const Transaction = require('../models/transactionModel');
+const Configuration = require('../models/configurationModel');
 
 const { processSpendingReward } = require('../controllers/commisionController');
 const { buildMerchantQRPaymentMessage, sendMessage } = require('../services/firebaseCloudMessage');
+
+const { verifyPIN, handleIncorrectPIN, isWalletLocked, requirePin } = require('../utility/walletUtility');
 
 const searchMerchant = asyncHandler(async (req, res) => {
     const { field, term, search, page = 1, limit = 5 } = req.query;
@@ -242,6 +246,42 @@ const qrSpending = asyncHandler(async (req, res) => {
         throw new Error('Insufficient funds');
     }
 
+
+    logger.info('Fetching configuration');
+    const configurations = await Configuration.getSingleton();
+    if (!configurations) {
+        res.status(500);
+        throw new Error('Configuration not found');
+    }
+
+    // PIN lockout check
+    if (isWalletLocked(senderWallet, configurations)) {
+        res.status(403);
+        throw new Error('PIN has been locked due to multiple failed attempts. Please contact support.');
+    }
+    if (requirePin(senderWallet, configurations, amount)) {
+        logger.info('Transaction requires PIN');
+        if (!senderWallet.pin) {
+            res.status(403);
+            throw new Error('Transaction above limit, please set up your pin');
+        }
+        if (!walletPin) {
+            res.status(403);
+            throw new Error('Enter your wallet PIN');
+        }
+
+        const isPINValid = await verifyPIN(walletPin, senderWallet.pin);
+        if (!isPINValid) {
+            // Security violation
+            res.status(403);
+            return await handleIncorrectPIN({
+                wallet: senderWallet,
+                configurations,
+                member: req.member
+            });
+        }
+    }
+
     logger.info('Fetching merchant details');
     const recipientMerchant = await Merchant.findOne({ spendingCode }, { _id: 1, memberId: 1, spendingCode: 1, cashbackRate: 1, status: 1 });
     if (!recipientMerchant) {
@@ -284,6 +324,7 @@ const qrSpending = asyncHandler(async (req, res) => {
 
     logger.info('Creating sender debit transaction');
     const senderTransaction = await Transaction.create({
+        referenceNumber: generateUniqueId('RH-MQR'),
         walletId: senderWallet._id,
         systemType: 'HubWallet',
         type: 'Debit',
@@ -300,6 +341,7 @@ const qrSpending = asyncHandler(async (req, res) => {
 
     logger.info('Creating merchant credit transaction');
     const recipientTransaction = await Transaction.create({
+        referenceNumber: generateUniqueId('RH-MQR'),
         walletId: recipientWallet._id,
         systemType: 'HubWallet',
         type: 'Credit',

@@ -1,6 +1,7 @@
 const asyncHandler = require('express-async-handler');
 const moment = require('moment-timezone');
 
+const { generateUniqueId } = require('../services/mongodb');
 const { logger } = require('../services/logger');
 const { getCategoryToyyib, createBillToyyib, getBillTransactionsToyyib } = require('../services/toyyibpay');
 const { resizeImage } = require('../services/sharp');
@@ -8,10 +9,12 @@ const { resizeImage } = require('../services/sharp');
 const Package = require('../models/packageModel');
 const Wallet = require('../models/walletModel');
 const Transaction = require('../models/transactionModel');
+const Logistic = require('../models/logisticModel');
 
 const { processVIPCommision } = require('../controllers/commisionController');
 
-const { sendShippingNotification } = require('../utility/mailBuilder.js');
+const { sendShipmentNotification } = require('../utility/mailBuilder.js');
+const { formatAmount } = require('../utility/formatter');
 
 const getPackage = asyncHandler(async (req, res) => {
     logger.info('Checking member user type');
@@ -77,7 +80,7 @@ const purchasePackage = asyncHandler(async (req, res) => {
         res.status(404);
         throw new Error('Package Not Found');
     }
-    
+
     logger.info('Overriding package price to RM 250');
     // Temporarily override package price
     vipPackage.price = 30000;
@@ -117,6 +120,7 @@ const purchasePackage = asyncHandler(async (req, res) => {
         // Create Transaction
         logger.info('Creating debit transaction');
         const transaction = await Transaction.create({
+            referenceNumber: generateUniqueId('RH-PKG'),
             walletId: wallet._id,
             systemType: 'HubWallet',
             type: 'Debit',
@@ -131,9 +135,26 @@ const purchasePackage = asyncHandler(async (req, res) => {
         // Process VIP Referral Commission
         processVIPCommision(req.member, vipPackage.price);
 
+        logger.info('Creating logistic tracking');
+        const [logisticTracking] = await Logistic.create([{
+            referenceNumber: generateUniqueId('RH-PKG'),
+            memberId: req.member._id,
+            transactionId: transaction._id,
+            systemType: 'Points Reward',
+            description: `1x ${vipPackage.name}`,
+            packageId: vipPackage._id,
+            shippingDetails: req.member.shippingDetails,
+            statusHistory: [{
+                status: 'Preparing',
+                updatedAt: new Date(),
+                updatedBy: req.member._id
+            }]
+        }]);
+        logger.info(`Logistic tracking created: ${logisticTracking._id}`);
+
         if (req.member.shippingDetails) {
             logger.info('Sending shipping notification via email');
-            sendShippingNotification(req.member, transaction);
+            await sendShipmentNotification(req.member, logisticTracking.toJSON(), formatAmount(transaction.amount));
         }
 
         res.status(200).json({
@@ -158,6 +179,7 @@ const purchasePackage = asyncHandler(async (req, res) => {
             // Create Transaction
             logger.info('Creating in progress transaction');
             const transaction = await Transaction.create({
+                referenceNumber: generateUniqueId('RH-PKG'),
                 walletId: wallet._id,
                 systemType: 'HubWallet',
                 type: 'Credit',

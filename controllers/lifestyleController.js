@@ -1,6 +1,6 @@
 const asyncHandler = require('express-async-handler');
 
-const { startManagedSession } = require('../services/mongodb');
+const { startManagedSession, generateUniqueId } = require('../services/mongodb');
 const { logger } = require('../services/logger');
 
 const LifestyleReward = require('../models/lifestyleModel');
@@ -94,39 +94,44 @@ const claimReward = asyncHandler(async (req, res) => {
             throw new Error('Lifestyle reward is no longer available');
         }
 
-        // Todo : Check if member has previously claimed
+        const previousLogistics = await Logistic.findOne({
+            memberId: req.member._id,
+            lifestyleRewardId: lifestyleRewards._id
+        }, null, { session });
+
+        if (previousLogistics) {
+            res.status(409); // Conflict
+            throw new Error('You have already claimed this lifestyle reward');
+        }
 
         // Check if member met the requirements
-        const allRequirementsMet = lifestyleRewards.requirement.every(requirements => {
-            const level = requirements.level;
-            const requiredVip = requirements.vipRequired;
-
-            // Find member's referral stats for this level
-            const stat = req.member.referralStats.find(s => s.level === level);
-            const vipCount = stat?.vip || 0;
-
-            logger.info(`Level ${level} - Required VIP: ${requiredVip}, Member VIP: ${vipCount}`);
-
-            return vipCount >= requiredVip;
-        });
-        if (!allRequirementsMet) {
+        const totalVip = req.member.referralStats.reduce((sum, stat) => sum + (stat.vip || 0), 0);
+        logger.info(`Total VIP : ${totalVip}, Claim Requirements : ${lifestyleRewards.requirement}`);
+        if (totalVip < lifestyleRewards.requirement) {
             res.status(400);
-            throw new Error('VIP requirements has not been met');
+            throw new Error(`VIP requirements has not been met. You are at ${totalVip}/${lifestyleRewards.requirement} VIP`);
         }
 
         logger.info('Creating logistic tracking');
-        const logisticTracking = await Logistic.create([{
+        const [logisticTracking] = await Logistic.create([{
+            referenceNumber: generateUniqueId('RH-LSR'),
+            memberId: req.member._id,
             systemType: 'Lifestyle Reward',
-            description: `${lifestyleRewards.title}`,
-            pointsRewardId: lifestyleRewards._id,
-            status: 'Preparing',
+            description: `1x ${lifestyleRewards.title}`,
+            lifestyleRewardId: lifestyleRewards._id,
             shippingDetails: req.member.shippingDetails,
+            statusHistory: [{
+                status: 'Preparing',
+                updatedAt: new Date(),
+                updatedBy: req.member._id
+            }]
         }], { session });
         logger.info(`Logistic tracking created: ${logisticTracking._id}`);
 
         // Send shipment notification
         logger.info('Sending shipping notification via email');
-        sendShipmentNotification(req.member, lifestyleTransaction);
+        const value = `${lifestyleRewards.requirement} VIP Members`;
+        await sendShipmentNotification(req.member, logisticTracking.toJSON(), value);
 
         await session.commitTransaction();
         res.status(200).json({
