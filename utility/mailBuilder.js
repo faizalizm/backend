@@ -19,6 +19,7 @@ const sendOtpMail = async (email, secureOtp, minutesAfterExpiry) => {
 };
 
 const sendShippingNotification = async (member, transaction) => {
+    // Buy via Toyyibpay
     // Fetch and modify HTML template
     const htmlTemplatePath = path.join(__dirname, '..', 'email', 'packageShipping.html');
     let htmlContent = fs.readFileSync(htmlTemplatePath, 'utf-8');
@@ -53,7 +54,7 @@ const sendShipmentNotification = async (member, logistic, value) => {
     const htmlTemplatePath = path.join(__dirname, '..', 'email', 'shipmentMail.html');
     let htmlContent = fs.readFileSync(htmlTemplatePath, 'utf-8');
 
-    htmlContent = htmlContent.replace('{{MAIL_TITLE}}', `RewardHub Points Shipment`);
+    htmlContent = htmlContent.replace('{{MAIL_TITLE}}', `RewardHub Order`);
     htmlContent = htmlContent.replace('{{RECIPIENT_NAME}}', `${recipientName} `);
 
     htmlContent = htmlContent.replace('{{DATE_TIME}}', `${logistic.createdAt} `);
@@ -61,14 +62,16 @@ const sendShipmentNotification = async (member, logistic, value) => {
     htmlContent = htmlContent.replace('{{ITEM_NAME}}', `${logistic.description} `);
     htmlContent = htmlContent.replace('{{ITEM_PRICE}}', `${value}`);
 
-    htmlContent = htmlContent.replace('${phone}', `${member.shippingDetails.phone || ''}`);
-    htmlContent = htmlContent.replace('${addressLine1}', `${member.shippingDetails.addressLine1}`);
-    htmlContent = htmlContent.replace('${addressLine2}', `${member.shippingDetails.addressLine2 || ''}`);
-    htmlContent = htmlContent.replace('${addressLine3}', `${member.shippingDetails.addressLine3 || ''}`);
-    htmlContent = htmlContent.replace('${city}', `${member.shippingDetails.city}`);
-    htmlContent = htmlContent.replace('${state}', `${member.shippingDetails.state || ''}`);
-    htmlContent = htmlContent.replace('${postCode}', `${member.shippingDetails.postCode}`);
-    htmlContent = htmlContent.replace('${country}', `${member.shippingDetails.country}`);
+    const addressLines = [
+        logistic.shippingDetails.phone,
+        logistic.shippingDetails.addressLine1,
+        logistic.shippingDetails.addressLine2,
+        logistic.shippingDetails.addressLine3,
+        `${logistic.shippingDetails.postCode}, ${logistic.shippingDetails.city}`,
+        `${logistic.shippingDetails.state}, ${logistic.shippingDetails.country}.`
+    ].filter(Boolean);
+
+    htmlContent = htmlContent.replace('{{ADDRESS_BLOCK}}', addressLines.join(',<br/>'));
 
     await sendMail(mailId, subject, htmlContent, member.email);
 };

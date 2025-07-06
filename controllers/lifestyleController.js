@@ -112,12 +112,9 @@ const claimReward = asyncHandler(async (req, res) => {
             throw new Error(`VIP requirements has not been met. You are at ${totalVip}/${lifestyleRewards.requirement} VIP`);
         }
 
-        logger.info('Generating logistic reference number');
-        const logisticRef = generateUniqueId('RH-LSR');
-
         logger.info('Creating logistic tracking');
         const [logisticTracking] = await Logistic.create([{
-            referenceNumber: logisticRef,
+            referenceNumber: generateUniqueId('RH-LSR'),
             memberId: req.member._id,
             systemType: 'Lifestyle Reward',
             description: `1x ${lifestyleRewards.title}`,

@@ -9,10 +9,12 @@ const { resizeImage } = require('../services/sharp');
 const Package = require('../models/packageModel');
 const Wallet = require('../models/walletModel');
 const Transaction = require('../models/transactionModel');
+const Logistic = require('../models/logisticModel');
 
 const { processVIPCommision } = require('../controllers/commisionController');
 
-const { sendShippingNotification } = require('../utility/mailBuilder.js');
+const { sendShipmentNotification } = require('../utility/mailBuilder.js');
+const { formatAmount } = require('../utility/formatter');
 
 const getPackage = asyncHandler(async (req, res) => {
     logger.info('Checking member user type');
@@ -133,9 +135,26 @@ const purchasePackage = asyncHandler(async (req, res) => {
         // Process VIP Referral Commission
         processVIPCommision(req.member, vipPackage.price);
 
+        logger.info('Creating logistic tracking');
+        const [logisticTracking] = await Logistic.create([{
+            referenceNumber: generateUniqueId('RH-PKG'),
+            memberId: req.member._id,
+            transactionId: transaction._id,
+            systemType: 'Points Reward',
+            description: `1x ${vipPackage.name}`,
+            packageId: vipPackage._id,
+            shippingDetails: req.member.shippingDetails,
+            statusHistory: [{
+                status: 'Preparing',
+                updatedAt: new Date(),
+                updatedBy: req.member._id
+            }]
+        }]);
+        logger.info(`Logistic tracking created: ${logisticTracking._id}`);
+
         if (req.member.shippingDetails) {
             logger.info('Sending shipping notification via email');
-            sendShippingNotification(req.member, transaction);
+            await sendShipmentNotification(req.member, logisticTracking.toJSON(), formatAmount(transaction.amount));
         }
 
         res.status(200).json({

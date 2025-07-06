@@ -41,6 +41,10 @@ const logisticSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Lifestyle',
     },
+    packageId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Package',
+    },
     shippingDetails: {// Shipping Details - For txn involve Shipping
         type: shippingDetailsSchema,
         required: [true, 'Please specify shipping details'],

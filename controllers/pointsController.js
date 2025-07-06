@@ -291,12 +291,9 @@ const claimReward = asyncHandler(async (req, res) => {
             amount: pointRewards.pointsRequirement
         }], { session });
 
-        logger.info('Generating logistic reference number');
-        const logisticRef = generateUniqueId('RH-PTR');
-
         logger.info('Creating logistic tracking');
         const [logisticTracking] = await Logistic.create([{
-            referenceNumber: logisticRef,
+            referenceNumber: generateUniqueId('RH-PTR'),
             memberId: req.member._id,
             transactionId: pointsTransaction._id,
             systemType: 'Points Reward',
