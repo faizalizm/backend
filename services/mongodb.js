@@ -1,5 +1,6 @@
 const colors = require('colors');
 const mongoose = require('mongoose');
+const crypto = require('crypto');
 
 const { logger, trimBase64 } = require('./logger');
 
@@ -119,4 +120,15 @@ const startManagedSession = async (options = {}) => {
     return session;
 };
 
-module.exports = { connectDB, closeDB, startManagedSession };
+const generateUniqueId = (prefix) => {
+    const id = new mongoose.Types.ObjectId();
+
+    const hash = crypto.createHash('md5').update(id.toString()).digest('hex');
+    return `${prefix}-${hash.slice(0, 8).toUpperCase()}`;
+}
+
+module.exports = {
+    connectDB, closeDB,
+    startManagedSession,
+    generateUniqueId
+};

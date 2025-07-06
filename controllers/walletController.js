@@ -3,6 +3,7 @@ const moment = require('moment-timezone');
 const fs = require('fs');
 const path = require('path');
 
+const { generateUniqueId } = require('../services/mongodb');
 const { logger } = require('../services/logger');
 const { sendMail } = require('../services/nodemailer');
 const { getCategoryToyyib, createBillToyyib, getBillTransactionsToyyib } = require('../services/toyyibpay');
@@ -201,6 +202,7 @@ const topupWallet = asyncHandler(async (req, res) => {
         // Create Transaction
         logger.info('Creating topup in progress transaction');
         const transaction = await Transaction.create({
+            referenceNumber: generateUniqueId('RH-TUP'),
             walletId: wallet._id,
             systemType: 'HubWallet',
             type: 'Credit',
@@ -301,6 +303,7 @@ const withdrawWallet = asyncHandler(async (req, res) => {
     }
 
     const transactionData = {
+        referenceNumber: generateUniqueId('RH-WDR'),
         walletId: wallet._id,
         systemType: 'HubWallet',
         type: 'Debit',
@@ -575,6 +578,7 @@ const transferWallet = asyncHandler(async (req, res) => {
 
     logger.info('Creating sender debit transaction');
     const senderTransaction = await Transaction.create({
+        referenceNumber: generateUniqueId('RH-TFR'),
         walletId: senderWallet._id,
         systemType: 'HubWallet',
         type: 'Debit',
@@ -587,6 +591,7 @@ const transferWallet = asyncHandler(async (req, res) => {
     logger.info(`Recipient balance : RM ${recipientWallet.balance / 100}, Receiving amount : RM ${amount / 100}`);
     logger.info('Creating recipient credit transaction');
     const recipientTransaction = await Transaction.create({
+        referenceNumber: generateUniqueId('RH-TFR'),
         walletId: recipientWallet._id,
         systemType: 'HubWallet',
         type: 'Credit',
@@ -721,6 +726,7 @@ const qrPayment = asyncHandler(async (req, res) => {
 
     logger.info('Creating sender debit transaction');
     const senderTransaction = await Transaction.create({
+        referenceNumber: generateUniqueId('RH-UQR'),
         walletId: senderWallet._id,
         systemType: 'HubWallet',
         type: 'Debit',
@@ -732,6 +738,7 @@ const qrPayment = asyncHandler(async (req, res) => {
 
     logger.info('Creating merchant credit transaction');
     const recipientTransaction = await Transaction.create({
+        referenceNumber: generateUniqueId('RH-UQR'),
         walletId: recipientWallet._id,
         systemType: 'HubWallet',
         type: 'Credit',

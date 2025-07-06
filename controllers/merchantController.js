@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const asyncHandler = require('express-async-handler');
 
+const { generateUniqueId } = require('../services/mongodb');
 const { logger } = require('../services/logger');
 const { resizeImage } = require('../services/sharp');
 
@@ -323,6 +324,7 @@ const qrSpending = asyncHandler(async (req, res) => {
 
     logger.info('Creating sender debit transaction');
     const senderTransaction = await Transaction.create({
+        referenceNumber: generateUniqueId('RH-MQR'),
         walletId: senderWallet._id,
         systemType: 'HubWallet',
         type: 'Debit',
@@ -339,6 +341,7 @@ const qrSpending = asyncHandler(async (req, res) => {
 
     logger.info('Creating merchant credit transaction');
     const recipientTransaction = await Transaction.create({
+        referenceNumber: generateUniqueId('RH-MQR'),
         walletId: recipientWallet._id,
         systemType: 'HubWallet',
         type: 'Credit',

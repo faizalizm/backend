@@ -15,6 +15,8 @@ const Member = require('../models/memberModel');
 const Wallet = require('../models/walletModel');
 const Otp = require('../models/otpModel');
 
+const { sendOtpMail } = require('../utility/mailBuilder.js');
+
 const registerMember = asyncHandler(async (req, res) => {
     let { userName, fullName, email, password, phone, referredBy } = req.body;
 
@@ -418,7 +420,7 @@ const getOtp = asyncHandler(async (req, res) => {
 
         if (email) {
             logger.info('Sending OTP via email');
-            await sendOtpEmail(email, otp, minutesAfterExpiry, otpExpiry);
+            await sendOtpMail(email, otp, minutesAfterExpiry);
         }
 
         res.status(200).json({
@@ -931,25 +933,9 @@ const sendInvitationEmail = async (recipientEmail, referralCode, playStoreInvita
     htmlContent = htmlContent.replace('${playStoreInvitation}', playStoreInvitation);
 
     let mailId = 'invitation';
-    let subject = 'Explore Rewards Hub';
+    let subject = 'RewardHub Secure OTP';
     await sendMail(mailId, subject, htmlContent, recipientEmail);
 };
-
-const sendOtpEmail = async (recipientEmail, otp, minutesAfterExpiry, otpExpiry) => {
-    // Fetch and modify HTML template
-    const htmlTemplatePath = path.join(__dirname, '..', 'email', 'otp.html');
-    let htmlContent = fs.readFileSync(htmlTemplatePath, 'utf-8');
-
-    // Replace placeholders with actual data
-    htmlContent = htmlContent.replace('${otp}', otp);
-    htmlContent = htmlContent.replace('${minutesAfterExpiry}', minutesAfterExpiry);
-    //    htmlContent = htmlContent.replace('${otpExpiry}', otpExpiry);
-
-    let mailId = 'otp';
-    let subject = 'Reward Hub OTP';
-    await sendMail(mailId, subject, htmlContent, recipientEmail);
-};
-
 
 module.exports = {
     registerMember,

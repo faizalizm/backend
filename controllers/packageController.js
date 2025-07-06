@@ -1,6 +1,7 @@
 const asyncHandler = require('express-async-handler');
 const moment = require('moment-timezone');
 
+const { generateUniqueId } = require('../services/mongodb');
 const { logger } = require('../services/logger');
 const { getCategoryToyyib, createBillToyyib, getBillTransactionsToyyib } = require('../services/toyyibpay');
 const { resizeImage } = require('../services/sharp');
@@ -77,7 +78,7 @@ const purchasePackage = asyncHandler(async (req, res) => {
         res.status(404);
         throw new Error('Package Not Found');
     }
-    
+
     logger.info('Overriding package price to RM 250');
     // Temporarily override package price
     vipPackage.price = 30000;
@@ -117,6 +118,7 @@ const purchasePackage = asyncHandler(async (req, res) => {
         // Create Transaction
         logger.info('Creating debit transaction');
         const transaction = await Transaction.create({
+            referenceNumber: generateUniqueId('RH-PKG'),
             walletId: wallet._id,
             systemType: 'HubWallet',
             type: 'Debit',
@@ -158,6 +160,7 @@ const purchasePackage = asyncHandler(async (req, res) => {
             // Create Transaction
             logger.info('Creating in progress transaction');
             const transaction = await Transaction.create({
+                referenceNumber: generateUniqueId('RH-PKG'),
                 walletId: wallet._id,
                 systemType: 'HubWallet',
                 type: 'Credit',
