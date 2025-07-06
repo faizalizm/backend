@@ -580,7 +580,7 @@ const getMember = asyncHandler(async (req, res) => {
 
         if (member.profilePicture) {
             logger.info('Resizing packages picture');
-            member.profilePicture.picture = await resizeImage(member.profilePicture, process.env.IMAGE_WIDTH_MEMBER_PROFILE, process.env.IMAGE_QUALITY_MEMBER_PROFILE);
+            member.profilePicture = await resizeImage(member.profilePicture, process.env.IMAGE_WIDTH_MEMBER_PROFILE, process.env.IMAGE_QUALITY_MEMBER_PROFILE);
         }
 
         res.status(200).json(member);
