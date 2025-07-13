@@ -140,10 +140,11 @@ const purchasePackage = asyncHandler(async (req, res) => {
             referenceNumber: generateUniqueId('RH-PKG'),
             memberId: req.member._id,
             transactionId: transaction._id,
-            systemType: 'Points Reward',
+            systemType: 'Package',
             description: `1x ${vipPackage.name}`,
             packageId: vipPackage._id,
             shippingDetails: req.member.shippingDetails,
+            status: 'Preparing',
             statusHistory: [{
                 status: 'Preparing',
                 updatedAt: new Date(),
@@ -154,7 +155,7 @@ const purchasePackage = asyncHandler(async (req, res) => {
 
         if (req.member.shippingDetails) {
             logger.info('Sending shipping notification via email');
-            await sendShipmentNotification(req.member, logisticTracking.toJSON(), formatAmount(transaction.amount));
+            sendShipmentNotification(req.member, logisticTracking.toJSON(), formatAmount(transaction.amount));
         }
 
         res.status(200).json({

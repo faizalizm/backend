@@ -42,9 +42,11 @@ const isWalletLocked = (wallet, configurations) => {
 };
 
 const requirePin = (wallet, configurations, amount) => {
-    if (amount >= wallet.minPinPrompt) {
+    if (wallet.minPinPrompt != null && amount >= wallet.minPinPrompt) {
+        logger.info(`Amount : ${amount} >= ${wallet.minPinPrompt}`);
         return true;
     } else if (amount >= configurations.payments.defaultPinPrompt) {
+        logger.info(`Amount : ${amount} >= ${configurations.payments.defaultPinPrompt}`);
         return true;
     }
     return false;
