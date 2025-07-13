@@ -300,6 +300,7 @@ const claimReward = asyncHandler(async (req, res) => {
             description: `1x ${pointRewards.title}`,
             pointsRewardId: pointRewards._id,
             shippingDetails: req.member.shippingDetails,
+            status: 'Preparing',
             statusHistory: [{
                 status: 'Preparing',
                 updatedAt: new Date(),
@@ -315,7 +316,7 @@ const claimReward = asyncHandler(async (req, res) => {
         // Send shipment notification
         logger.info('Sending shipping notification via email');
         const value = `${pointsTransaction.amount} HubPoints`;
-        await sendShipmentNotification(req.member, logisticTracking.toJSON(), value);
+        sendShipmentNotification(req.member, logisticTracking.toJSON(), value);
 
         await session.commitTransaction();
         res.status(200).json({

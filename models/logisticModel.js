@@ -27,6 +27,7 @@ const logisticSchema = new mongoose.Schema({
         enum: [
             'Lifestyle Reward',
             'Points Reward',
+            'Package',
         ]
     },
     description: {
@@ -56,6 +57,11 @@ const logisticSchema = new mongoose.Schema({
     courier: {
         type: String,
         trim: true
+    },
+    status: {
+        type: String,
+        required: [true, 'Please specify status'],
+        enum: ['Preparing', 'In Transit', 'Delivered', 'Cancelled', 'Returned'],
     },
     statusHistory: [
         {

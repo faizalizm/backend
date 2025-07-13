@@ -9,6 +9,9 @@ const configurationSchema = new mongoose.Schema({
         },
         minimum: {
             type: String
+        },
+        updateUrl: {
+            type: String
         }
     },
     resources: {

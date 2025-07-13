@@ -124,7 +124,7 @@ const processSpendingReward = async (spenderWallet, member, cashbackRate, amount
 
     const spenderPercentages = cashbackRate * 50 / 100;
     const charitablePercentages = cashbackRate * 2 / 100;
-    const mdrPercentages = cashbackRate * 6 / 100;
+    const mdrPercentages = cashbackRate * 8 / 100;
 
     const spenderReward = amount * spenderPercentages / 100;
     const charitableContribution = amount * charitablePercentages / 100;
