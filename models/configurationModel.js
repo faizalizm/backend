@@ -78,7 +78,7 @@ const configurationSchema = new mongoose.Schema({
             type: String,
         },
         recipientName: {
-            default: String
+            type: String
         },
         recipientAccountNumber: {
             type: String,

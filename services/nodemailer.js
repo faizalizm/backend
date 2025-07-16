@@ -24,10 +24,10 @@ const defaultOptions = {
     }
 };
 
-const sendMail = async (mailId, subject, htmlContent, recipientEmail) => {
+const sendMail = async (mailId, subject, htmlContent, recipientEmail, options = {}) => {
     try {
         const to = recipientEmail || process.env.EMAIL_ADMIN; // Use recipientEmail if provided, otherwise default to admin email
-        const isBcc = true;
+        const skipBcc = options.skipBcc || false; // New option to control BCC
 
         htmlContent = await minify(htmlContent, {
             collapseWhitespace: true,
@@ -47,7 +47,7 @@ const sendMail = async (mailId, subject, htmlContent, recipientEmail) => {
             messageId: `rewardhub-${mailId}-${Date.now()}@rewardhub.asia`,
         };
 
-        if (isBcc) {
+        if (!skipBcc && recipientEmail) {
             message.bcc = process.env.EMAIL_ADMIN;
         }
 
