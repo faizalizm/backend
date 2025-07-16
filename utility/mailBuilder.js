@@ -15,7 +15,7 @@ const sendOtpMail = async (email, secureOtp, minutesAfterExpiry) => {
     htmlContent = htmlContent.replace('{{SECURE_OTP}}', `${secureOtp} `);
     htmlContent = htmlContent.replace('{{MINUTE_EXPIRY}}', `${minutesAfterExpiry} `);
 
-    await sendMail(mailId, subject, htmlContent, email);
+    await sendMail(mailId, subject, htmlContent, email, { skipBcc: true });
 };
 
 const sendShippingNotification = async (member, transaction) => {
