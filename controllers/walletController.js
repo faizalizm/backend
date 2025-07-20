@@ -838,7 +838,7 @@ const updatePin = asyncHandler(async (req, res) => {
             }
             if (minPinPrompt < configurations.payments.minPinPrompt || minPinPrompt > configurations.payments.maxPinPrompt) {
                 res.status(400);
-                throw new Error(`Minimum amount for PIN must be between RM ${configurations.payments.minPinPrompt} to RM ${configurations.payments.maxPinPrompt}`);
+                throw new Error(`Minimum amount for PIN must be between RM ${formatAmount(configurations.payments.minPinPrompt)} to RM ${formatAmount(configurations.payments.maxPinPrompt)}`);
             }
 
             wallet.minPinPrompt = minPinPrompt;
